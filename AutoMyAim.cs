@@ -64,6 +64,32 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
             if (rawPosToAim != Vector2.Zero)
             {
                 var safePosToAim = GetSafeAimPosition(rawPosToAim);
+                if (Settings.ConfineCursorToCircle)
+                {
+                    var screenCenter = new Vector2(
+                        GameController.Window.GetWindowRectangle().Width / 2,
+                        GameController.Window.GetWindowRectangle().Height / 2
+                    );
+
+                    var vectorToTarget = safePosToAim - screenCenter;
+                    var distanceToTarget = vectorToTarget.Length();
+
+                    if (distanceToTarget > Settings.CursorCircleRadius)
+                    {
+                        if (Settings.PointToOffscreenTargets)
+                        {
+                            // Normalize and scale the vector to point in target's direction
+                            vectorToTarget = Vector2.Normalize(vectorToTarget) * Settings.CursorCircleRadius;
+                            safePosToAim = screenCenter + vectorToTarget;
+                        }
+                        else
+                        {
+                            // Skip moving cursor if outside circle and not pointing
+                            return;
+                        }
+                    }
+                }
+
                 if (IsValidClickPosition(safePosToAim))
                 {
                     var randomizedPos = GetRandomizedAimPosition(safePosToAim);
@@ -175,7 +201,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     public override void Render()
     {
-        if (!ShouldRender()) return;
+        if (Settings.EnableDrawing && !ShouldRender()) return;
 
         var rect = GameController.Window.GetWindowRectangle() with { Location = Vector2.Zero };
         SetupImGuiWindow(rect);
@@ -202,14 +228,14 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     private bool ShouldRender()
     {
-        if (Settings.Enable &&
-            Settings.EnableDrawing &&
-            GameController is { InGame: true, Player: not null } && !GameController.IngameState.IngameUi.FullscreenPanels.Any(x => x.IsVisible) && !GameController.Settings.CoreSettings.Enable)
-        {
-            return true;
-        }
+        var ingameUi = GameController?.IngameState.IngameUi;
 
-        return false;
+        return Settings.Enable &&
+               GameController is { InGame: true, Player: not null } &&
+               !GameController.Settings.CoreSettings.Enable &&
+               (!ingameUi.FullscreenPanels.Any(x => x.IsVisible) || Settings.RenderOnFullPanels) &&
+               (!ingameUi.OpenLeftPanel.IsVisible || Settings.RenderOnleftPanels) &&
+               (!ingameUi.OpenRightPanel.IsVisible || Settings.RenderOnRightPanels);
     }
 
     private void SetupImGuiWindow(RectangleF rect)
@@ -248,6 +274,16 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     private void RenderAimVisualization()
     {
+        if (Settings.ConfineCursorToCircle)
+        {
+            var screenCenter = new Vector2(
+                GameController.Window.GetWindowRectangle().Width / 2,
+                GameController.Window.GetWindowRectangle().Height / 2
+            );
+            _drawList.AddCircle(screenCenter, Settings.CursorCircleRadius,
+                ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 0, 0.5f)), 64, 1f);
+        }
+
         if (_currentTarget == null) return;
 
         var rawPosToAim = GameController.IngameState.Camera.WorldToScreen(_currentTarget.Entity.Pos);
