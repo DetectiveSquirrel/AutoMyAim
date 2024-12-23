@@ -40,7 +40,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     public override void Tick()
     {
-        if (!Settings.Enable) return;
+        if (!Settings.Enable || !Input.GetKeyState(Settings.AimKey.Value)) return;
 
         var player = GameController?.Player;
         if (player == null) return;
@@ -56,45 +56,61 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
         UpdateEntityWeights(currentPos);
 
-        _currentTarget = _trackedEntities.Any() ? _trackedEntities.OrderByDescending(x => x.Weight).First() : null;
+        var sortedEntities = _trackedEntities.OrderByDescending(x => x.Weight).ToList();
+        if (!sortedEntities.Any()) return;
 
-        if (ShouldWork() && _currentTarget != null && Input.GetKeyState(Settings.AimKey.Value))
+        TrackedEntity targetEntity = null;
+        var rawPosToAim = Vector2.Zero;
+
+        if (!Settings.PointToOffscreenTargetsOtherwiseFindNextTargetInBounds)
         {
-            var rawPosToAim = GameController.IngameState.Camera.WorldToScreen(_currentTarget.Entity.Pos);
-            if (rawPosToAim != Vector2.Zero)
+            foreach (var entity in sortedEntities)
             {
-                var safePosToAim = GetSafeAimPosition(rawPosToAim);
-                if (Settings.ConfineCursorToCircle)
+                var pos = GameController.IngameState.Camera.WorldToScreen(entity.Entity.Pos);
+                if (pos != Vector2.Zero && IsValidClickPosition(pos))
                 {
-                    var screenCenter = new Vector2(
-                        GameController.Window.GetWindowRectangle().Width / 2,
-                        GameController.Window.GetWindowRectangle().Height / 2
-                    );
-
-                    var vectorToTarget = safePosToAim - screenCenter;
-                    var distanceToTarget = vectorToTarget.Length();
-
-                    if (distanceToTarget > Settings.CursorCircleRadius)
-                    {
-                        if (Settings.PointToOffscreenTargets)
-                        {
-                            // Normalize and scale the vector to point in target's direction
-                            vectorToTarget = Vector2.Normalize(vectorToTarget) * Settings.CursorCircleRadius;
-                            safePosToAim = screenCenter + vectorToTarget;
-                        }
-                        else
-                        {
-                            // Skip moving cursor if outside circle and not pointing
-                            return;
-                        }
-                    }
+                    targetEntity = entity;
+                    rawPosToAim = pos;
+                    break;
                 }
+            }
 
-                if (IsValidClickPosition(safePosToAim))
+            if (targetEntity == null) return;
+        }
+        else
+        {
+            targetEntity = sortedEntities.First();
+            rawPosToAim = GameController.IngameState.Camera.WorldToScreen(targetEntity.Entity.Pos);
+            if (rawPosToAim == Vector2.Zero) return;
+        }
+
+        _currentTarget = targetEntity;
+
+        if (ShouldWork() && _currentTarget != null)
+        {
+            var safePosToAim = GetSafeAimPosition(rawPosToAim);
+
+            if (Settings.ConfineCursorToCircle)
+            {
+                var screenCenter = new Vector2(
+                    GameController.Window.GetWindowRectangle().Width / 2,
+                    GameController.Window.GetWindowRectangle().Height / 2
+                );
+
+                var vectorToTarget = safePosToAim - screenCenter;
+                var distanceToTarget = vectorToTarget.Length();
+
+                if (distanceToTarget > Settings.CursorCircleRadius)
                 {
-                    var randomizedPos = GetRandomizedAimPosition(safePosToAim);
-                    if (IsValidClickPosition(randomizedPos)) Input.SetCursorPos(randomizedPos);
+                    vectorToTarget = Vector2.Normalize(vectorToTarget) * Settings.CursorCircleRadius;
+                    safePosToAim = screenCenter + vectorToTarget;
                 }
+            }
+
+            if (IsValidClickPosition(safePosToAim))
+            {
+                var randomizedPos = GetRandomizedAimPosition(safePosToAim);
+                if (IsValidClickPosition(randomizedPos)) Input.SetCursorPos(randomizedPos);
             }
         }
     }
@@ -161,15 +177,44 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private Vector2 GetSafeAimPosition(Vector2 targetPos)
     {
         var window = GameController.Window.GetWindowRectangle();
-
-        return new Vector2(
-            Math.Clamp(targetPos.X,
-                window.X + Settings.LeftPadding.Value,
-                window.X + window.Width - Settings.RightPadding.Value),
-            Math.Clamp(targetPos.Y,
-                window.Y + Settings.TopPadding.Value,
-                window.Y + window.Height - Settings.BottomPadding.Value)
+        var screenCenter = new Vector2(
+            window.X + window.Width / 2,
+            window.Y + window.Height / 2
         );
+
+        var safeZone = new RectangleF(
+            window.X + Settings.LeftPadding.Value,
+            window.Y + Settings.TopPadding.Value,
+            window.Width - (Settings.LeftPadding.Value + Settings.RightPadding.Value),
+            window.Height - (Settings.TopPadding.Value + Settings.BottomPadding.Value)
+        );
+
+        if (!(targetPos.X < safeZone.Left) && !(targetPos.X > safeZone.Right) &&
+            !(targetPos.Y < safeZone.Top) && !(targetPos.Y > safeZone.Bottom)) return targetPos;
+        var vectorToTarget = targetPos - screenCenter;
+
+        var normalizedVector = Vector2.Normalize(vectorToTarget);
+
+        float scaleX = float.MaxValue, scaleY = float.MaxValue;
+
+        if (normalizedVector.X != 0)
+        {
+            if (vectorToTarget.X > 0)
+                scaleX = (safeZone.Right - screenCenter.X) / normalizedVector.X;
+            else
+                scaleX = (safeZone.Left - screenCenter.X) / normalizedVector.X;
+        }
+
+        if (normalizedVector.Y != 0)
+        {
+            if (vectorToTarget.Y > 0)
+                scaleY = (safeZone.Bottom - screenCenter.Y) / normalizedVector.Y;
+            else
+                scaleY = (safeZone.Top - screenCenter.Y) / normalizedVector.Y;
+        }
+
+        var scale = Math.Min(scaleX, scaleY);
+        return screenCenter + normalizedVector * scale;
     }
 
     private Vector2 GetRandomizedAimPosition(Vector2 targetPos)

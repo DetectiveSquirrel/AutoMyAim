@@ -46,5 +46,5 @@ public class AutoMyAimSettings : ISettings
     public ToggleNode ShowDebug { get; set; } = new(false);
     public ToggleNode ConfineCursorToCircle { get; set; } = new(false);
     public RangeNode<int> CursorCircleRadius { get; set; } = new(300, 50, 1000);
-    public ToggleNode PointToOffscreenTargets { get; set; } = new(true);
+    public ToggleNode PointToOffscreenTargetsOtherwiseFindNextTargetInBounds { get; set; } = new(false);
 }
