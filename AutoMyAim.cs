@@ -58,7 +58,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
         _currentTarget = _trackedEntities.Any() ? _trackedEntities.OrderByDescending(x => x.Weight).First() : null;
 
-        if (ShouldRender() && _currentTarget != null && Input.GetKeyState(Settings.AimKey.Value))
+        if (ShouldWork() && _currentTarget != null && Input.GetKeyState(Settings.AimKey.Value))
         {
             var rawPosToAim = GameController.IngameState.Camera.WorldToScreen(_currentTarget.Entity.Pos);
             if (rawPosToAim != Vector2.Zero)
@@ -201,7 +201,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     public override void Render()
     {
-        if (Settings.EnableDrawing && !ShouldRender()) return;
+        if (!Settings.EnableDrawing) return;
+        if (!ShouldWork()) return;
 
         var rect = GameController.Window.GetWindowRectangle() with { Location = Vector2.Zero };
         SetupImGuiWindow(rect);
@@ -226,16 +227,17 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         ImGui.End();
     }
 
-    private bool ShouldRender()
+    private bool ShouldWork()
     {
         var ingameUi = GameController?.IngameState.IngameUi;
 
-        return Settings.Enable &&
-               GameController is { InGame: true, Player: not null } &&
-               !GameController.Settings.CoreSettings.Enable &&
-               (!ingameUi.FullscreenPanels.Any(x => x.IsVisible) || Settings.RenderOnFullPanels) &&
-               (!ingameUi.OpenLeftPanel.IsVisible || Settings.RenderOnleftPanels) &&
-               (!ingameUi.OpenRightPanel.IsVisible || Settings.RenderOnRightPanels);
+        if (!Settings.Enable) return false;
+        if (GameController is not { InGame: true, Player: not null }) return false;
+        if (GameController.Settings.CoreSettings.Enable) return false;
+        if (!Settings.RenderOnFullPanels && ingameUi.FullscreenPanels.Any(x => x.IsVisible)) return false;
+        if (!Settings.RenderOnleftPanels && ingameUi.OpenLeftPanel.IsVisible) return false;
+        if (!ingameUi.OpenRightPanel.IsVisible) return true;
+        return Settings.RenderOnRightPanels;
     }
 
     private void SetupImGuiWindow(RectangleF rect)
