@@ -30,10 +30,9 @@ public class TargetWeightCalculator
         for (var i = 0; i < entityCount; i++)
         {
             var entity = entities[i];
-            var distanceSq = Vector2.DistanceSquared(playerPosition, entity.Entity.GridPos);
-            entity.Distance = MathF.Sqrt(distanceSq);
+            entity.Distance = entity.Entity.DistancePlayer;
 
-            if (distanceSq > maxDistanceSq)
+            if (entity.Distance > settings.Targeting.MaxTargetDistance)
             {
                 entity.Weight = 0f;
                 continue;
@@ -50,8 +49,7 @@ public class TargetWeightCalculator
 
             foreach (var cluster in clusters)
             {
-                var center = Vector2.Zero;
-                foreach (var entity in cluster) center += entity.Entity.GridPos;
+                var center = cluster.Aggregate(Vector2.Zero, (current, entity) => current + entity.Entity.GridPos);
                 center /= cluster.Count;
 
                 var clusterBonus = Math.Min(
@@ -165,15 +163,11 @@ public class TargetWeightCalculator
             var cluster = new List<TrackedEntity> { entity };
             processed.Add(entity);
 
-            foreach (var other in entities)
+            foreach (var other in entities.Where(other => !processed.Contains(other)).Where(other =>
+                         Vector2.DistanceSquared(entity.Entity.GridPos, other.Entity.GridPos) <= clusterRadiusSq))
             {
-                if (processed.Contains(other)) continue;
-
-                if (Vector2.DistanceSquared(entity.Entity.GridPos, other.Entity.GridPos) <= clusterRadiusSq)
-                {
-                    cluster.Add(other);
-                    processed.Add(other);
-                }
+                cluster.Add(other);
+                processed.Add(other);
             }
 
             if (cluster.Count >= minClusterSize) clusters.Add(cluster);
@@ -208,16 +202,13 @@ public class TargetWeightCalculator
     {
         var currentEntitySet = new HashSet<Entity>(currentEntities.Select(x => x.Entity));
 
-        foreach (var key in _previousWeights.Keys.ToList())
-            if (!currentEntitySet.Contains(key))
-                _previousWeights.Remove(key);
+        foreach (var key in _previousWeights.Keys.ToList().Where(key => !currentEntitySet.Contains(key)))
+            _previousWeights.Remove(key);
 
-        foreach (var key in _cachedRarities.Keys.ToList())
-            if (!currentEntitySet.Contains(key))
-                _cachedRarities.Remove(key);
+        foreach (var key in _cachedRarities.Keys.ToList().Where(key => !currentEntitySet.Contains(key)))
+            _cachedRarities.Remove(key);
 
-        foreach (var key in _cachedLife.Keys.ToList())
-            if (!currentEntitySet.Contains(key))
-                _cachedLife.Remove(key);
+        foreach (var key in _cachedLife.Keys.ToList().Where(key => !currentEntitySet.Contains(key)))
+            _cachedLife.Remove(key);
     }
 }
