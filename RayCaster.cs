@@ -9,15 +9,20 @@ namespace AutoMyAim;
 
 public class RayCaster
 {
-    private readonly List<(Vector2 Pos, int Value)> _gridPointsCache = new();
-    private readonly List<(Vector2 Start, Vector2 End)> _rayLines = new();
-    private readonly HashSet<Vector2> _visiblePoints = new();
+    private readonly List<(Vector2 Pos, int Value)> _gridPointsCache = [];
+    private readonly List<(Vector2 Start, Vector2 End)> _rayLines = [];
+    private readonly HashSet<Vector2> _visiblePoints = [];
 
     private Vector2 _areaDimensions;
     private RaycastRenderConfig _currentConfig;
     private Vector2 _observerPos;
     private float _observerZ;
     private int[][] _pathfindingCache;
+
+    public void InitializeConfig(RaycastRenderConfig config)
+    {
+        _currentConfig = config;
+    }
 
     public void UpdateArea(GameController gameController)
     {
@@ -134,7 +139,13 @@ public class RayCaster
 
     public void Render(ImDrawListPtr drawList, GameController gameController, RaycastRenderConfig config)
     {
-        _currentConfig = config;
+        _currentConfig.ShowRayLines = config.ShowRayLines;
+        _currentConfig.ShowTerrainValues = config.ShowTerrainValues;
+        _currentConfig.RayLineThickness = config.RayLineThickness;
+        _currentConfig.VisibleColor = config.VisibleColor;
+        _currentConfig.ShadowColor = config.ShadowColor;
+        _currentConfig.RayLineColor = config.RayLineColor;
+        _currentConfig.DrawAtPlayerPlane = config.DrawAtPlayerPlane;
         _observerZ = gameController.IngameState.Data.GetTerrainHeightAt(_observerPos);
 
         if (config.ShowRayLines)

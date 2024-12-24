@@ -3,17 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using ExileCore2;
-using ExileCore2.Shared;
+using ExileCore2.PoEMemory.MemoryObjects;
 using ExileCore2.Shared.Enums;
 using ExileCore2.Shared.Helpers;
 using ImGuiNET;
+using RectangleF = ExileCore2.Shared.RectangleF;
 
 namespace AutoMyAim;
 
 public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 {
+    public static AutoMyAim Main;
     private readonly Random _random = new();
-    private readonly List<TrackedEntity> _trackedEntities = new();
+    private readonly List<TrackedEntity> _trackedEntities = [];
     private TrackedEntity _currentTarget;
     private ImDrawListPtr _drawList;
     private Vector2 _lastPlayerPos;
@@ -23,8 +25,25 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     public override bool Initialise()
     {
         Name = "Auto My Aim";
+        Main = this;
         _rayCaster = new RayCaster();
         _weightCalculator = new TargetWeightCalculator();
+        _currentTarget = null;
+
+        var raycastConfig = new RaycastRenderConfig
+        {
+            ShowRayLines = Settings.ShowRayLines,
+            ShowTerrainValues = Settings.ShowTerrainValues,
+            TargetLayerValue = Settings.TargetLayerValue,
+            GridSize = Settings.GridSize,
+            RayCount = Settings.RayCount,
+            RayLineThickness = Settings.RayLineThickness,
+            VisibleColor = Settings.VisibleColor,
+            ShadowColor = Settings.ShadowColor,
+            RayLineColor = Settings.RayLineColor,
+            DrawAtPlayerPlane = Settings.DrawAtPlayerPlane
+        };
+        _rayCaster.InitializeConfig(raycastConfig);
 
         Input.RegisterKey(Settings.AimKey);
         Settings.AimKey.OnValueChanged += () => { Input.RegisterKey(Settings.AimKey); };
@@ -40,7 +59,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     public override void Tick()
     {
-        if (!Settings.Enable || !Input.GetKeyState(Settings.AimKey.Value)) return;
+        if (!ShouldProcess() || !Input.GetKeyState(Settings.AimKey.Value)) return;
 
         var player = GameController?.Player;
         if (player == null) return;
@@ -86,7 +105,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
         _currentTarget = targetEntity;
 
-        if (ShouldWork() && _currentTarget != null)
+        if (_currentTarget != null)
         {
             var safePosToAim = GetSafeAimPosition(rawPosToAim);
 
@@ -115,14 +134,25 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         }
     }
 
+    private bool ShouldExcludeEntity(Entity entity)
+    {
+        return entity.Path.StartsWith("Metadata/Monsters/MonsterMods/");
+    }
+
+    private bool IsEntityValid(Entity entity)
+    {
+        return entity is { IsValid: true, IsAlive: true, IsTargetable: true, IsHidden: false };
+    }
+
     private void ScanForEntities(Vector2 playerPos)
     {
         _trackedEntities.Clear();
         var scanDistance = Settings.EntityScanDistance.Value;
 
-        foreach (var entity in GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster])
+        foreach (var entity in GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster]
+                     .Where(x => !ShouldExcludeEntity(x)))
         {
-            if (entity?.IsValid != true || !entity.IsAlive || !entity.IsTargetable || entity.IsHidden) continue;
+            if (!IsEntityValid(entity)) continue;
 
             var distance = Vector2.Distance(playerPos, entity.GridPos);
             if (distance <= scanDistance && _rayCaster.IsPositionVisible(entity.GridPos))
@@ -130,7 +160,6 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
                 var weight = Settings.EnableWeighting
                     ? _weightCalculator.CalculateWeight(Settings, entity, distance)
                     : 0f;
-
                 _trackedEntities.Add(new TrackedEntity
                 {
                     Entity = entity,
@@ -191,8 +220,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
         if (!(targetPos.X < safeZone.Left) && !(targetPos.X > safeZone.Right) &&
             !(targetPos.Y < safeZone.Top) && !(targetPos.Y > safeZone.Bottom)) return targetPos;
-        var vectorToTarget = targetPos - screenCenter;
 
+        var vectorToTarget = targetPos - screenCenter;
         var normalizedVector = Vector2.Normalize(vectorToTarget);
 
         float scaleX = float.MaxValue, scaleY = float.MaxValue;
@@ -246,8 +275,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     public override void Render()
     {
-        if (!Settings.EnableDrawing) return;
-        if (!ShouldWork()) return;
+        if (!ShouldDraw()) return;
 
         var rect = GameController.Window.GetWindowRectangle() with { Location = Vector2.Zero };
         SetupImGuiWindow(rect);
@@ -272,17 +300,25 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         ImGui.End();
     }
 
-    private bool ShouldWork()
+    private bool AreUiElementsVisible(IngameUIElements ingameUi)
     {
-        var ingameUi = GameController?.IngameState.IngameUi;
-
-        if (!Settings.Enable) return false;
-        if (GameController is not { InGame: true, Player: not null }) return false;
-        if (GameController.Settings.CoreSettings.Enable) return false;
+        if (ingameUi == null) return false;
         if (!Settings.RenderOnFullPanels && ingameUi.FullscreenPanels.Any(x => x.IsVisible)) return false;
         if (!Settings.RenderOnleftPanels && ingameUi.OpenLeftPanel.IsVisible) return false;
-        if (!ingameUi.OpenRightPanel.IsVisible) return true;
-        return Settings.RenderOnRightPanels;
+        return Settings.RenderOnRightPanels || !ingameUi.OpenRightPanel.IsVisible;
+    }
+
+    private bool ShouldProcess()
+    {
+        if (!Settings.Enable) return false;
+        if (GameController is not { InGame: true, Player: not null }) return false;
+        return !GameController.Settings.CoreSettings.Enable &&
+               AreUiElementsVisible(GameController?.IngameState.IngameUi);
+    }
+
+    private bool ShouldDraw()
+    {
+        return Settings.EnableDrawing && AreUiElementsVisible(GameController?.IngameState.IngameUi);
     }
 
     private void SetupImGuiWindow(RectangleF rect)
