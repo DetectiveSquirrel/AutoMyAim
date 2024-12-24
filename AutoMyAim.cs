@@ -66,14 +66,9 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         if (player == null) return;
 
         var currentPos = player.GridPos;
-
-        if (currentPos != _lastPlayerPos)
-        {
-            _lastPlayerPos = currentPos;
-            _rayCaster.UpdateObserver(currentPos);
-            ScanForEntities(currentPos);
-        }
-
+        _lastPlayerPos = currentPos;
+        _rayCaster.UpdateObserver(currentPos);
+        ScanForEntities(currentPos);
         UpdateEntityWeights(currentPos);
 
         var sortedEntities = _trackedEntities.OrderByDescending(x => x.Weight).ToList();
@@ -144,7 +139,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     {
         if (entity == null) return false;
 
-        if (!entity.IsValid || !entity.IsAlive || entity.IsDead || !entity.IsTargetable || entity.IsHidden || !entity.IsHostile)
+        if (!entity.IsValid || !entity.IsAlive || entity.IsDead || !entity.IsTargetable || entity.IsHidden ||
+            !entity.IsHostile)
             return false;
 
         return !entity.Stats.TryGetValue(GameStat.CannotBeDamaged, out var value) || value != 1;
