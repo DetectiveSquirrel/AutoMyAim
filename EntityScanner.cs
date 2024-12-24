@@ -31,7 +31,7 @@ public class EntityScanner
     public void ScanForEntities(Vector2 playerPos, GameController gameController)
     {
         _trackedEntities.Clear();
-        var scanDistance = AutoMyAim.Main.Settings.EntityScanDistance.Value;
+        var scanDistance = AutoMyAim.Main.Settings.Targeting.EntityScanDistance.Value;
 
         foreach (var entity in gameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster]
                      .Where(x => !ShouldExcludeEntity(x)))
@@ -41,7 +41,7 @@ public class EntityScanner
             var distance = Vector2.Distance(playerPos, entity.GridPos);
             if (distance <= scanDistance && AutoMyAim.Main._rayCaster.IsPositionVisible(entity.GridPos))
             {
-                var weight = AutoMyAim.Main.Settings.EnableWeighting
+                var weight = AutoMyAim.Main.Settings.Targeting.Weights.EnableWeighting
                     ? _weightCalculator.CalculateWeight(AutoMyAim.Main.Settings, entity, distance)
                     : 0f;
                 _trackedEntities.Add(new TrackedEntity
@@ -61,12 +61,12 @@ public class EntityScanner
         foreach (var tracked in _trackedEntities)
         {
             tracked.Distance = Vector2.Distance(playerPos, tracked.Entity.GridPos);
-            tracked.Weight = AutoMyAim.Main.Settings.EnableWeighting
+            tracked.Weight = AutoMyAim.Main.Settings.Targeting.Weights.EnableWeighting
                 ? _weightCalculator.CalculateWeight(AutoMyAim.Main.Settings, tracked.Entity, tracked.Distance)
                 : 0f;
         }
 
-        if (AutoMyAim.Main.Settings.EnableWeighting)
+        if (AutoMyAim.Main.Settings.Targeting.Weights.EnableWeighting)
             _trackedEntities.Sort((a, b) => b.Weight.CompareTo(a.Weight));
     }
 

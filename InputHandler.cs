@@ -57,7 +57,7 @@ public class InputHandler
 
     public Vector2 GetRandomizedAimPosition(Vector2 targetPos, RectangleF window)
     {
-        if (!AutoMyAim.Main.Settings.RandomizeInRadius)
+        if (!AutoMyAim.Main.Settings.Render.Cursor.RandomizeInRadius)
             return targetPos;
 
         var attempts = 0;
@@ -66,7 +66,7 @@ public class InputHandler
         while (attempts < maxAttempts)
         {
             var angle = _random.NextDouble() * Math.PI * 2;
-            var distance = _random.NextDouble() * AutoMyAim.Main.Settings.AcceptableRadius;
+            var distance = _random.NextDouble() * AutoMyAim.Main.Settings.Render.Cursor.AcceptableRadius;
 
             var randomPos = new Vector2(
                 targetPos.X + (float)(Math.Cos(angle) * distance),
@@ -85,10 +85,12 @@ public class InputHandler
     private RectangleF GetSafeZone(RectangleF window)
     {
         return new RectangleF(
-            window.X + AutoMyAim.Main.Settings.LeftPadding.Value,
-            window.Y + AutoMyAim.Main.Settings.TopPadding.Value,
-            window.Width - (AutoMyAim.Main.Settings.LeftPadding.Value + AutoMyAim.Main.Settings.RightPadding.Value),
-            window.Height - (AutoMyAim.Main.Settings.TopPadding.Value + AutoMyAim.Main.Settings.BottomPadding.Value)
+            window.X + AutoMyAim.Main.Settings.Render.Panels.Padding.Left.Value,
+            window.Y + AutoMyAim.Main.Settings.Render.Panels.Padding.Top.Value,
+            window.Width - (AutoMyAim.Main.Settings.Render.Panels.Padding.Left.Value +
+                            AutoMyAim.Main.Settings.Render.Panels.Padding.Right.Value),
+            window.Height - (AutoMyAim.Main.Settings.Render.Panels.Padding.Top.Value +
+                             AutoMyAim.Main.Settings.Render.Panels.Padding.Bottom.Value)
         );
     }
 }

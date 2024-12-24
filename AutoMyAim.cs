@@ -31,17 +31,17 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
         var raycastConfig = new RaycastRenderConfig
         {
-            ShowRayLines = Settings.ShowRayLines,
-            ShowTerrainValues = Settings.ShowTerrainValues,
-            TargetLayerValue = Settings.TargetLayerValue,
-            GridSize = Settings.GridSize,
-            RayLength = Settings.RayLength,
-            RayCount = Settings.RayCount,
-            RayLineThickness = Settings.RayLineThickness,
-            VisibleColor = Settings.VisibleColor,
-            ShadowColor = Settings.ShadowColor,
-            RayLineColor = Settings.RayLineColor,
-            DrawAtPlayerPlane = Settings.DrawAtPlayerPlane
+            ShowRayLines = Settings.Raycast.Visuals.ShowRayLines,
+            ShowTerrainValues = Settings.Raycast.Visuals.ShowTerrainValues,
+            TargetLayerValue = Settings.Raycast.TargetLayerValue,
+            GridSize = Settings.Raycast.GridSize,
+            RayLength = Settings.Raycast.Length,
+            RayCount = Settings.Raycast.Count,
+            RayLineThickness = Settings.Raycast.Visuals.RayLineThickness,
+            VisibleColor = Settings.Raycast.Visuals.Colors.Visible,
+            ShadowColor = Settings.Raycast.Visuals.Colors.Shadow,
+            RayLineColor = Settings.Raycast.Visuals.Colors.RayLine,
+            DrawAtPlayerPlane = Settings.Raycast.Visuals.DrawAtPlayerPlane
         };
         _rayCaster.InitializeConfig(raycastConfig);
 
@@ -77,7 +77,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         TrackedEntity targetEntity = null;
         var rawPosToAim = Vector2.Zero;
 
-        if (!Settings.PointToOffscreenTargetsOtherwiseFindNextTargetInBounds)
+        if (!Settings.Targeting.PointToOffscreenTargetsOtherwiseFindNextTargetInBounds)
         {
             foreach (var entity in sortedEntities)
             {
@@ -107,7 +107,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
             var window = GameController.Window.GetWindowRectangle();
             var safePosToAim = _inputHandler.GetSafeAimPosition(rawPosToAim, window);
 
-            if (Settings.ConfineCursorToCircle)
+            if (Settings.Render.Cursor.ConfineCursorToCircle)
             {
                 var screenCenter = new Vector2(
                     window.Width / 2,
@@ -117,9 +117,9 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
                 var vectorToTarget = safePosToAim - screenCenter;
                 var distanceToTarget = vectorToTarget.Length();
 
-                if (distanceToTarget > Settings.CursorCircleRadius)
+                if (distanceToTarget > Settings.Render.Cursor.CursorCircleRadius)
                 {
-                    vectorToTarget = Vector2.Normalize(vectorToTarget) * Settings.CursorCircleRadius;
+                    vectorToTarget = Vector2.Normalize(vectorToTarget) * Settings.Render.Cursor.CursorCircleRadius;
                     safePosToAim = screenCenter + vectorToTarget;
                 }
             }
@@ -148,8 +148,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private bool AreUiElementsVisible(IngameUIElements ingameUi)
     {
         if (ingameUi == null) return false;
-        if (!Settings.RenderOnFullPanels && ingameUi.FullscreenPanels.Any(x => x.IsVisible)) return false;
-        if (!Settings.RenderOnleftPanels && ingameUi.OpenLeftPanel.IsVisible) return false;
-        return Settings.RenderOnRightPanels || !ingameUi.OpenRightPanel.IsVisible;
+        if (!Settings.Render.Panels.RenderAndWorkOnFullPanels && ingameUi.FullscreenPanels.Any(x => x.IsVisible)) return false;
+        if (!Settings.Render.Panels.RenderAndWorkOnleftPanels && ingameUi.OpenLeftPanel.IsVisible) return false;
+        return Settings.Render.Panels.RenderAndWorkOnRightPanels || !ingameUi.OpenRightPanel.IsVisible;
     }
 }
