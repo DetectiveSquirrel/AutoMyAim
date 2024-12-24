@@ -66,13 +66,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         if (player == null) return;
 
         var currentPos = player.GridPos;
-
-        if (currentPos != _lastPlayerPos)
-        {
-            _lastPlayerPos = currentPos;
-            _rayCaster.UpdateObserver(currentPos);
-            ScanForEntities(currentPos);
-        }
+        _lastPlayerPos = currentPos;
+        ScanForEntities(currentPos);
 
         UpdateEntityWeights(currentPos);
 
@@ -144,7 +139,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     {
         if (entity == null) return false;
 
-        if (!entity.IsValid || !entity.IsAlive || entity.IsDead || !entity.IsTargetable || entity.IsHidden || !entity.IsHostile)
+        if (!entity.IsValid || !entity.IsAlive || entity.IsDead || !entity.IsTargetable || entity.IsHidden ||
+            !entity.IsHostile)
             return false;
 
         return !entity.Stats.TryGetValue(GameStat.CannotBeDamaged, out var value) || value != 1;
@@ -152,27 +148,72 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     private void ScanForEntities(Vector2 playerPos)
     {
-        _trackedEntities.Clear();
-        var scanDistance = Settings.EntityScanDistance.Value;
-
-        foreach (var entity in GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster]
-                     .Where(x => !ShouldExcludeEntity(x)))
+        try
         {
-            if (!IsEntityValid(entity)) continue;
+            _trackedEntities.Clear();
+            var scanDistance = Settings.EntityScanDistance.Value;
 
-            var distance = Vector2.Distance(playerPos, entity.GridPos);
-            if (distance <= scanDistance && _rayCaster.IsPositionVisible(entity.GridPos))
-            {
-                var weight = Settings.EnableWeighting
-                    ? _weightCalculator.CalculateWeight(Settings, entity, distance)
-                    : 0f;
-                _trackedEntities.Add(new TrackedEntity
+            // Clean up any invalid entities first
+            GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster]
+                .RemoveAll(x => x == null || !x.IsValid);
+
+            // Get all potential entities within range first, with thorough validation
+            var potentialEntities = GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster]
+                .Where(x => x != null && x.IsValid && !x.IsHidden) // Basic validation
+                .Where(x => !ShouldExcludeEntity(x)) // Custom exclusion rules
+                .Where(x => IsEntityValid(x)) // Full validation check
+                .Where(x =>
                 {
-                    Entity = entity,
-                    Distance = distance,
-                    Weight = weight
-                });
-            }
+                    try
+                    {
+                        // Validate the entity's position
+                        var distance = Vector2.Distance(playerPos, x.GridPos);
+                        return !float.IsNaN(distance) && !float.IsInfinity(distance) && distance <= scanDistance;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                })
+                .ToList();
+
+            if (potentialEntities.Count == 0) return; // No valid entities to process
+
+            // Update raycaster with player position and entities to check
+            _rayCaster.UpdateObserverAndEntities(playerPos, potentialEntities);
+
+            // Process entities that are actually visible
+            foreach (var entity in potentialEntities)
+                try
+                {
+                    if (entity == null || !entity.IsValid || entity.IsHidden)
+                        continue;
+
+                    if (_rayCaster.IsPositionVisible(entity.GridPos))
+                    {
+                        var distance = Vector2.Distance(playerPos, entity.GridPos);
+                        if (float.IsNaN(distance) || float.IsInfinity(distance))
+                            continue;
+
+                        var weight = Settings.EnableWeighting
+                            ? _weightCalculator.CalculateWeight(Settings, entity, distance)
+                            : 0f;
+
+                        _trackedEntities.Add(new TrackedEntity
+                        {
+                            Entity = entity,
+                            Distance = distance,
+                            Weight = weight
+                        });
+                    }
+                }
+                catch
+                {
+                }
+        }
+        catch
+        {
+            _trackedEntities.Clear(); // Reset if something goes wrong
         }
     }
 
