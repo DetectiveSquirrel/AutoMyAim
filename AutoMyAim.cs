@@ -144,7 +144,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     {
         if (entity == null) return false;
 
-        if (!entity.IsValid || !entity.IsAlive || !entity.IsTargetable || entity.IsHidden || !entity.IsHostile)
+        if (!entity.IsValid || !entity.IsAlive || entity.IsDead || !entity.IsTargetable || entity.IsHidden || !entity.IsHostile)
             return false;
 
         return !entity.Stats.TryGetValue(GameStat.CannotBeDamaged, out var value) || value != 1;
