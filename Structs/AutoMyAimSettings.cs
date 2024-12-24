@@ -79,10 +79,13 @@ public class TargetingSettings
 
         public HPSettings HP { get; set; } = new();
         public RaritySettings Rarity { get; set; } = new();
+        public ClusterSettings Cluster { get; set; } = new();
+        public SmoothingSettings Smoothing { get; set; } = new();
 
         [Submenu(CollapsedByDefault = false)]
         public class HPSettings
         {
+            public ToggleNode EnableHPWeighting { get; set; } = new(true);
             public ToggleNode PreferHigherHP { get; set; } = new(false);
             public RangeNode<float> Weight { get; set; } = new(1.0f, 0f, 5f);
         }
@@ -90,10 +93,35 @@ public class TargetingSettings
         [Submenu(CollapsedByDefault = false)]
         public class RaritySettings
         {
+            public ToggleNode EnableRarityWeighting { get; set; } = new(true);
             public RangeNode<float> Normal { get; set; } = new(1.0f, 0f, 10f);
             public RangeNode<float> Magic { get; set; } = new(2.0f, 0f, 10f);
             public RangeNode<float> Rare { get; set; } = new(3.0f, 0f, 10f);
             public RangeNode<float> Unique { get; set; } = new(4.0f, 0f, 10f);
+        }
+
+        [Submenu(CollapsedByDefault = false)]
+        public class ClusterSettings
+        {
+            public ToggleNode EnableClustering { get; set; } = new(true);
+            public RangeNode<float> ClusterRadius { get; set; } = new(25f, 10f, 100f);
+            public RangeNode<int> MinClusterSize { get; set; } = new(3, 2, 10);
+            public RangeNode<float> BaseClusterBonus { get; set; } = new(0.1f, 0f, 1f);
+            public RangeNode<float> MaxClusterBonus { get; set; } = new(2.0f, 1f, 5f);
+
+            public ToggleNode EnableCoreBonus { get; set; } = new(true);
+            public RangeNode<float> CoreBonusMultiplier { get; set; } = new(1.2f, 1f, 2f);
+            public RangeNode<float> CoreRadiusPercent { get; set; } = new(0.5f, 0.1f, 1f);
+
+            public ToggleNode EnableIsolationPenalty { get; set; } = new(true);
+            public RangeNode<float> IsolationPenaltyMultiplier { get; set; } = new(0.8f, 0.1f, 1f);
+        }
+
+        [Submenu(CollapsedByDefault = false)]
+        public class SmoothingSettings
+        {
+            public ToggleNode EnableSmoothing { get; set; } = new(true);
+            public RangeNode<float> SmoothingFactor { get; set; } = new(0.3f, 0.1f, 1f);
         }
     }
 
