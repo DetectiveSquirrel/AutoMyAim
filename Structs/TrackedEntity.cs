@@ -1,6 +1,6 @@
 ﻿using ExileCore2.PoEMemory.MemoryObjects;
 
-namespace AutoMyAim;
+namespace AutoMyAim.Structs;
 
 public class TrackedEntity
 {

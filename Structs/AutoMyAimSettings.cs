@@ -3,7 +3,7 @@ using System.Windows.Forms;
 using ExileCore2.Shared.Interfaces;
 using ExileCore2.Shared.Nodes;
 
-namespace AutoMyAim;
+namespace AutoMyAim.Structs;
 
 public class AutoMyAimSettings : ISettings
 {
@@ -11,7 +11,7 @@ public class AutoMyAimSettings : ISettings
     public ToggleNode RenderOnFullPanels { get; set; } = new(true);
     public ToggleNode RenderOnleftPanels { get; set; } = new(true);
     public ToggleNode RenderOnRightPanels { get; set; } = new(true);
-    public HotkeyNode AimKey { get; set; } = new HotkeyNode(Keys.None);
+    public HotkeyNode AimKey { get; set; } = new(Keys.None);
     public RangeNode<int> EntityScanDistance { get; set; } = new(100, 1, 500);
     public RangeNode<int> TargetLayerValue { get; set; } = new(0, 0, 5);
     public ToggleNode DrawAtPlayerPlane { get; set; } = new(true);
@@ -24,7 +24,6 @@ public class AutoMyAimSettings : ISettings
     public ColorNode VisibleColor { get; set; } = new(Color.White);
     public ColorNode ShadowColor { get; set; } = new(Color.FromArgb(30, 30, 30));
     public ColorNode RayLineColor { get; set; } = new(Color.FromArgb(255, 255, 0));
-    public ToggleNode Enable { get; set; } = new(true);
     public ToggleNode EnableWeighting { get; set; } = new(true);
     public RangeNode<float> DistanceWeight { get; set; } = new(1f, 0f, 5f);
     public RangeNode<float> MaxTargetDistance { get; set; } = new(100f, 0f, 200f);
@@ -48,4 +47,5 @@ public class AutoMyAimSettings : ISettings
     public ToggleNode ConfineCursorToCircle { get; set; } = new(false);
     public RangeNode<int> CursorCircleRadius { get; set; } = new(300, 50, 1000);
     public ToggleNode PointToOffscreenTargetsOtherwiseFindNextTargetInBounds { get; set; } = new(false);
+    public ToggleNode Enable { get; set; } = new(true);
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using AutoMyAim.Structs;
 using ExileCore2.PoEMemory.Components;
 using ExileCore2.PoEMemory.MemoryObjects;
 using ExileCore2.Shared.Enums;

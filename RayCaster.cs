@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
+using AutoMyAim.Structs;
 using ExileCore2;
 using ExileCore2.Shared.Helpers;
 using ImGuiNET;

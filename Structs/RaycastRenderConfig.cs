@@ -1,6 +1,6 @@
 ﻿using ExileCore2.Shared.Nodes;
 
-namespace AutoMyAim;
+namespace AutoMyAim.Structs;
 
 public class RaycastRenderConfig
 {
