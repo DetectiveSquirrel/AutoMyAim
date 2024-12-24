@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using AutoMyAim.Structs;
 using ExileCore2;
@@ -14,6 +15,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     internal readonly RayCaster _rayCaster;
     private readonly AimRenderer _renderer;
     private TrackedEntity _currentTarget;
+    private bool _isAimToggled;
     private Vector2 _lastPlayerPos;
 
     public AutoMyAim()
@@ -46,7 +48,13 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         _rayCaster.InitializeConfig(raycastConfig);
 
         Input.RegisterKey(Settings.AimKey);
+        Input.RegisterKey(Settings.AimToggleKey);
         Settings.AimKey.OnValueChanged += () => { Input.RegisterKey(Settings.AimKey); };
+        Settings.AimToggleKey.OnValueChanged += () =>
+        {
+            Input.RegisterKey(Settings.AimToggleKey);
+            _isAimToggled = false;
+        };
         return true;
     }
 
@@ -55,15 +63,24 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         _rayCaster.UpdateArea(GameController);
         _entityScanner.ClearEntities();
         _currentTarget = null;
+        _isAimToggled = false;
     }
 
     public override void Tick()
     {
-        if (!ShouldProcess() || !Input.GetKeyState(Settings.AimKey.Value)) return;
+        if (Settings.AimToggleKey.PressedOnce()) _isAimToggled = !_isAimToggled;
+
+        if (!ShouldProcess()) return;
+        if (!_isAimToggled && !Input.GetKeyState(Settings.AimKey.Value)) return;
 
         var player = GameController?.Player;
         if (player == null) return;
 
+        ProcessAiming(player);
+    }
+
+    private void ProcessAiming(Entity player)
+    {
         var currentPos = player.GridPos;
         _lastPlayerPos = currentPos;
         _rayCaster.UpdateObserver(currentPos);
@@ -74,9 +91,15 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         var sortedEntities = _entityScanner.GetTrackedEntities().OrderByDescending(x => x.Weight).ToList();
         if (!sortedEntities.Any()) return;
 
-        TrackedEntity targetEntity = null;
-        var rawPosToAim = Vector2.Zero;
+        var (targetEntity, rawPosToAim) = GetTargetEntityAndPosition(sortedEntities);
+        if (targetEntity == null) return;
 
+        _currentTarget = targetEntity;
+        UpdateCursorPosition(rawPosToAim);
+    }
+
+    private (TrackedEntity entity, Vector2 position) GetTargetEntityAndPosition(List<TrackedEntity> sortedEntities)
+    {
         if (!Settings.Targeting.PointToOffscreenTargetsOtherwiseFindNextTargetInBounds)
         {
             foreach (var entity in sortedEntities)
@@ -84,51 +107,41 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
                 var pos = GameController.IngameState.Camera.WorldToScreen(entity.Entity.Pos);
                 if (pos != Vector2.Zero &&
                     _inputHandler.IsValidClickPosition(pos, GameController.Window.GetWindowRectangle()))
-                {
-                    targetEntity = entity;
-                    rawPosToAim = pos;
-                    break;
-                }
+                    return (entity, pos);
             }
 
-            if (targetEntity == null) return;
-        }
-        else
-        {
-            targetEntity = sortedEntities.First();
-            rawPosToAim = GameController.IngameState.Camera.WorldToScreen(targetEntity.Entity.Pos);
-            if (rawPosToAim == Vector2.Zero) return;
+            return (null, Vector2.Zero);
         }
 
-        _currentTarget = targetEntity;
+        var targetEntity = sortedEntities.First();
+        var rawPosToAim = GameController.IngameState.Camera.WorldToScreen(targetEntity.Entity.Pos);
+        return rawPosToAim == Vector2.Zero ? (null, Vector2.Zero) : (targetEntity, rawPosToAim);
+    }
 
-        if (_currentTarget != null)
+    private void UpdateCursorPosition(Vector2 rawPosToAim)
+    {
+        if (_currentTarget == null) return;
+
+        var window = GameController.Window.GetWindowRectangle();
+        var safePosToAim = _inputHandler.GetSafeAimPosition(rawPosToAim, window);
+
+        if (Settings.Render.Cursor.ConfineCursorToCircle)
         {
-            var window = GameController.Window.GetWindowRectangle();
-            var safePosToAim = _inputHandler.GetSafeAimPosition(rawPosToAim, window);
+            var screenCenter = new Vector2(window.Width / 2, window.Height / 2);
+            var vectorToTarget = safePosToAim - screenCenter;
+            var distanceToTarget = vectorToTarget.Length();
 
-            if (Settings.Render.Cursor.ConfineCursorToCircle)
+            if (distanceToTarget > Settings.Render.Cursor.CursorCircleRadius)
             {
-                var screenCenter = new Vector2(
-                    window.Width / 2,
-                    window.Height / 2
-                );
-
-                var vectorToTarget = safePosToAim - screenCenter;
-                var distanceToTarget = vectorToTarget.Length();
-
-                if (distanceToTarget > Settings.Render.Cursor.CursorCircleRadius)
-                {
-                    vectorToTarget = Vector2.Normalize(vectorToTarget) * Settings.Render.Cursor.CursorCircleRadius;
-                    safePosToAim = screenCenter + vectorToTarget;
-                }
+                vectorToTarget = Vector2.Normalize(vectorToTarget) * Settings.Render.Cursor.CursorCircleRadius;
+                safePosToAim = screenCenter + vectorToTarget;
             }
+        }
 
-            if (_inputHandler.IsValidClickPosition(safePosToAim, window))
-            {
-                var randomizedPos = _inputHandler.GetRandomizedAimPosition(safePosToAim, window);
-                if (_inputHandler.IsValidClickPosition(randomizedPos, window)) Input.SetCursorPos(randomizedPos);
-            }
+        if (_inputHandler.IsValidClickPosition(safePosToAim, window))
+        {
+            var randomizedPos = _inputHandler.GetRandomizedAimPosition(safePosToAim, window);
+            if (_inputHandler.IsValidClickPosition(randomizedPos, window)) Input.SetCursorPos(randomizedPos);
         }
     }
 
@@ -148,7 +161,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private bool AreUiElementsVisible(IngameUIElements ingameUi)
     {
         if (ingameUi == null) return false;
-        if (!Settings.Render.Panels.RenderAndWorkOnFullPanels && ingameUi.FullscreenPanels.Any(x => x.IsVisible)) return false;
+        if (!Settings.Render.Panels.RenderAndWorkOnFullPanels &&
+            ingameUi.FullscreenPanels.Any(x => x.IsVisible)) return false;
         if (!Settings.Render.Panels.RenderAndWorkOnleftPanels && ingameUi.OpenLeftPanel.IsVisible) return false;
         return Settings.Render.Panels.RenderAndWorkOnRightPanels || !ingameUi.OpenRightPanel.IsVisible;
     }

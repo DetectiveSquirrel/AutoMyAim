@@ -10,6 +10,7 @@ public class AutoMyAimSettings : ISettings
 {
     public ToggleNode Enable { get; set; } = new(false);
     public HotkeyNode AimKey { get; set; } = new(Keys.None);
+    public HotkeyNode AimToggleKey { get; set; } = new(Keys.None);
     public RenderSettings Render { get; set; } = new();
     public TargetingSettings Targeting { get; set; } = new();
     public RaycastSettings Raycast { get; set; } = new();
