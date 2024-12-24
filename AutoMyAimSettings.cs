@@ -17,7 +17,8 @@ public class AutoMyAimSettings : ISettings
     public ToggleNode DrawAtPlayerPlane { get; set; } = new(true);
     public ToggleNode ShowRayLines { get; set; } = new(false);
     public ToggleNode ShowTerrainValues { get; set; } = new(true);
-    public RangeNode<int> GridSize { get; set; } = new(60, 1, 500);
+    public RangeNode<int> GridSize { get; set; } = new(60, 1, 1000);
+    public RangeNode<int> RayLength { get; set; } = new(150, 1, 1000);
     public RangeNode<int> RayCount { get; set; } = new(360, 8, 720);
     public RangeNode<float> RayLineThickness { get; set; } = new(1.0f, 1.0f, 5.0f);
     public ColorNode VisibleColor { get; set; } = new(Color.White);

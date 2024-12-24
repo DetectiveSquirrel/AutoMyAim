@@ -36,6 +36,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
             ShowTerrainValues = Settings.ShowTerrainValues,
             TargetLayerValue = Settings.TargetLayerValue,
             GridSize = Settings.GridSize,
+            RayLength = Settings.RayLength,
             RayCount = Settings.RayCount,
             RayLineThickness = Settings.RayLineThickness,
             VisibleColor = Settings.VisibleColor,

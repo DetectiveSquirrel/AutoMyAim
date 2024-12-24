@@ -94,7 +94,7 @@ public class RayCaster
             (direction.Y < 0 ? start.Y - mapPos.Y : mapPos.Y + 1f - start.Y) * deltaDist.Y
         );
 
-        var maxSteps = _currentConfig.GridSize.Value * 2;
+        var maxSteps = _currentConfig.RayLength.Value;
         var rayEnd = start;
 
         for (var steps = 0; steps < maxSteps; steps++)

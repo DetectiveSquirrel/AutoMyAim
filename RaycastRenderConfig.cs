@@ -8,6 +8,7 @@ public class RaycastRenderConfig
     public ToggleNode ShowTerrainValues { get; set; }
     public RangeNode<int> TargetLayerValue { get; set; }
     public RangeNode<int> GridSize { get; set; }
+    public RangeNode<int> RayLength { get; set; }
     public RangeNode<int> RayCount { get; set; }
     public RangeNode<float> RayLineThickness { get; set; }
     public ColorNode VisibleColor { get; set; }
