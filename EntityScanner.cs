@@ -40,17 +40,12 @@ public class EntityScanner
 
             var distance = Vector2.Distance(playerPos, entity.GridPos);
             if (distance <= scanDistance && AutoMyAim.Main._rayCaster.IsPositionVisible(entity.GridPos))
-            {
-                var weight = AutoMyAim.Main.Settings.Targeting.Weights.EnableWeighting
-                    ? _weightCalculator.CalculateWeight(AutoMyAim.Main.Settings, entity, distance)
-                    : 0f;
                 _trackedEntities.Add(new TrackedEntity
                 {
                     Entity = entity,
                     Distance = distance,
-                    Weight = weight
+                    Weight = 0f
                 });
-            }
         }
     }
 
@@ -59,12 +54,9 @@ public class EntityScanner
         _trackedEntities.RemoveAll(tracked => !tracked.Entity?.IsValid == true || !tracked.Entity.IsAlive);
 
         foreach (var tracked in _trackedEntities)
-        {
             tracked.Distance = Vector2.Distance(playerPos, tracked.Entity.GridPos);
-            tracked.Weight = AutoMyAim.Main.Settings.Targeting.Weights.EnableWeighting
-                ? _weightCalculator.CalculateWeight(AutoMyAim.Main.Settings, tracked.Entity, tracked.Distance)
-                : 0f;
-        }
+
+        _weightCalculator.UpdateWeights(_trackedEntities, playerPos, AutoMyAim.Main.Settings);
 
         if (AutoMyAim.Main.Settings.Targeting.Weights.EnableWeighting)
             _trackedEntities.Sort((a, b) => b.Weight.CompareTo(a.Weight));
@@ -72,14 +64,18 @@ public class EntityScanner
 
     private bool ShouldExcludeEntity(Entity entity)
     {
-        return entity.Path.StartsWith("Metadata/Monsters/MonsterMods/");
+        return entity?.Path?.StartsWith("Metadata/Monsters/MonsterMods/") == true;
     }
 
     private bool IsEntityValid(Entity entity)
     {
         if (entity == null) return false;
 
-        if (!entity.IsValid || !entity.IsAlive || entity.IsDead || !entity.IsTargetable || entity.IsHidden ||
+        if (!entity.IsValid ||
+            !entity.IsAlive ||
+            entity.IsDead ||
+            !entity.IsTargetable ||
+            entity.IsHidden ||
             !entity.IsHostile)
             return false;
 
