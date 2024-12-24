@@ -142,7 +142,12 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     private bool IsEntityValid(Entity entity)
     {
-        return entity is { IsValid: true, IsAlive: true, IsTargetable: true, IsHidden: false };
+        if (entity == null) return false;
+
+        if (!entity.IsValid || !entity.IsAlive || !entity.IsTargetable || entity.IsHidden || !entity.IsHostile)
+            return false;
+
+        return !entity.Stats.TryGetValue(GameStat.CannotBeDamaged, out var value) || value != 1;
     }
 
     private void ScanForEntities(Vector2 playerPos)
