@@ -56,6 +56,10 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
             Input.RegisterKey(Settings.AimToggleKey);
             _isAimToggled = false;
         };
+        Settings.UseWalkableTerrainInsteadOfTargetTerrain.OnValueChanged += (_, _) =>
+        {
+            _rayCaster.UpdateArea(GameController);
+        };
         return true;
     }
 

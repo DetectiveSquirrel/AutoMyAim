@@ -81,10 +81,18 @@ public class EntityScanner(TargetWeightCalculator weightCalculator, ClusterManag
             _trackedEntities.Sort((a, b) => b.Weight.CompareTo(a.Weight));
     }
 
-    // do any entity exclusions here
     private bool ShouldExcludeEntity(Entity entity)
     {
-        return entity?.Path?.StartsWith("Metadata/Monsters/MonsterMods/") == true;
+        if (entity?.Path == null)
+            return false;
+
+        var excludedPrefixes = new[]
+        {
+            "Metadata/Monsters/MonsterMods/",
+            "Metadata/Monsters/VaalConstructs/Cycloning/VaalCycloneConstructArmsSpawned"
+        };
+
+        return excludedPrefixes.Any(prefix => entity.Path.StartsWith(prefix));
     }
 
     private bool IsEntityValid(Entity entity)

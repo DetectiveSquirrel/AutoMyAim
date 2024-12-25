@@ -30,7 +30,9 @@ public class RayCaster
     {
         _areaDimensions = gameController.IngameState.Data.AreaDimensions;
 
-        var rawData = gameController.IngameState.Data.RawTerrainTargetingData;
+        var rawData = AutoMyAim.Main.Settings.UseWalkableTerrainInsteadOfTargetTerrain
+            ? gameController.IngameState.Data.RawPathfindingData
+            : gameController.IngameState.Data.RawTerrainTargetingData;
         _terrainData = new int[rawData.Length][];
         for (var y = 0; y < rawData.Length; y++)
         {
