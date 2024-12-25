@@ -8,11 +8,10 @@ using ExileCore2.Shared.Enums;
 
 namespace AutoMyAim;
 
-public class EntityScanner
+public class EntityScanner(TargetWeightCalculator weightCalculator, ClusterManager clusterManager)
 {
     private readonly List<Entity> _inRangeEntities = []; // Store entities in range before visibility check
     private readonly List<TrackedEntity> _trackedEntities = [];
-    private readonly TargetWeightCalculator _weightCalculator = new();
 
     public List<TrackedEntity> GetTrackedEntities()
     {
@@ -76,7 +75,7 @@ public class EntityScanner
         foreach (var tracked in _trackedEntities)
             tracked.Distance = Vector2.Distance(playerPos, tracked.Entity.GridPos);
 
-        _weightCalculator.UpdateWeights(_trackedEntities, playerPos, AutoMyAim.Main.Settings);
+        weightCalculator.UpdateWeights(_trackedEntities, playerPos, AutoMyAim.Main.Settings, clusterManager);
 
         if (AutoMyAim.Main.Settings.Targeting.Weights.EnableWeighting)
             _trackedEntities.Sort((a, b) => b.Weight.CompareTo(a.Weight));

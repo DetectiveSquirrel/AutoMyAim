@@ -23,6 +23,7 @@ public class RenderSettings
     public ToggleNode ShowDebug { get; set; } = new(true);
 
     public WeightVisualsSettings WeightVisuals { get; set; } = new();
+    public ClusterVisualsSettings ClusterVisuals { get; set; } = new();
     public UIPanelSettings Panels { get; set; } = new();
     public CursorSettings Cursor { get; set; } = new();
 
@@ -31,6 +32,17 @@ public class RenderSettings
     {
         public ToggleNode ShowWeights { get; set; } = new(true);
         public ColorNode WeightTextColor { get; set; } = new(Color.FromArgb(255, 255, 255, 255));
+    }
+
+    [Submenu(CollapsedByDefault = false)]
+    public class ClusterVisualsSettings
+    {
+        public ToggleNode ShowClusters { get; set; } = new(true);
+        public ColorNode ClusterFillColor { get; set; } = new(Color.FromArgb(128, 255, 255, 0)); // Semi-transparent yellow
+        public ColorNode ClusterBorderColor { get; set; } = new(Color.FromArgb(192, 255, 200, 0)); // More opaque yellow-orange
+        public RangeNode<float> BorderThickness { get; set; } = new(2.0f, 0.5f, 5.0f);
+        public ToggleNode ShowClusterInfo { get; set; } = new(true);
+        public ColorNode ClusterInfoTextColor { get; set; } = new(Color.FromArgb(255, 255, 220, 130));
     }
 
     [Submenu(CollapsedByDefault = true)]

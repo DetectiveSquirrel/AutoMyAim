@@ -10,10 +10,12 @@ namespace AutoMyAim;
 public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 {
     public static AutoMyAim Main;
+    private readonly ClusterManager _clusterManager;
     private readonly EntityScanner _entityScanner;
     private readonly InputHandler _inputHandler;
     internal readonly RayCaster _rayCaster;
     private readonly AimRenderer _renderer;
+    private readonly TargetWeightCalculator _weightCalculator;
     private TrackedEntity _currentTarget;
     private bool _isAimToggled;
 
@@ -21,9 +23,11 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     {
         Name = "Auto My Aim";
         _rayCaster = new RayCaster();
-        _entityScanner = new EntityScanner();
+        _clusterManager = new ClusterManager();
+        _weightCalculator = new TargetWeightCalculator();
+        _entityScanner = new EntityScanner(_weightCalculator, _clusterManager);
         _inputHandler = new InputHandler();
-        _renderer = new AimRenderer();
+        _renderer = new AimRenderer(_clusterManager);
     }
 
     public override bool Initialise()
@@ -59,6 +63,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     {
         _rayCaster.UpdateArea(GameController);
         _entityScanner.ClearEntities();
+        _clusterManager.ClearRenderState();
         _currentTarget = null;
         _isAimToggled = false;
     }
@@ -85,9 +90,9 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         _rayCaster.UpdateObserver(currentPos, potentialTargets);
 
         _entityScanner.ProcessVisibleEntities(currentPos);
-        _entityScanner.UpdateEntityWeights(currentPos);
+        _entityScanner.UpdateEntityWeights(currentPos); // Use EntityScanner's method instead
 
-        var sortedEntities = _entityScanner.GetTrackedEntities().OrderByDescending(x => x.Weight).ToList();
+        var sortedEntities = _entityScanner.GetTrackedEntities(); // They're already sorted now
         if (!sortedEntities.Any()) return;
 
         var (targetEntity, rawPosToAim) = GetTargetEntityAndPosition(sortedEntities);

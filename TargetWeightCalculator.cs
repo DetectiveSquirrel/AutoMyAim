@@ -15,20 +15,16 @@ public class TargetWeightCalculator
     private readonly Dictionary<Entity, MonsterRarity> _cachedRarities = new();
     private readonly Dictionary<Entity, float> _previousWeights = new();
 
-    public void UpdateWeights(List<TrackedEntity> entities, Vector2 playerPosition, AutoMyAimSettings settings)
+    public void UpdateWeights(List<TrackedEntity> entities, Vector2 playerPosition, AutoMyAimSettings settings,
+        ClusterManager clusterManager)
     {
         if (!settings.Targeting.Weights.EnableWeighting) return;
 
-        var entityCount = entities.Count;
         var clusterSettings = settings.Targeting.Weights.Cluster;
 
-        // Calculate cluster radius squared once
-        var clusterRadiusSq = clusterSettings.ClusterRadius.Value * clusterSettings.ClusterRadius.Value;
-
-        // Precalculate distances and update base weights
-        for (var i = 0; i < entityCount; i++)
+        // Update base weights
+        foreach (var entity in entities)
         {
-            var entity = entities[i];
             entity.Distance = entity.Entity.DistancePlayer;
 
             if (entity.Distance > settings.Targeting.MaxTargetDistance)
@@ -40,58 +36,19 @@ public class TargetWeightCalculator
             entity.Weight = FastCalculateBaseWeight(entity, entity.Distance, settings);
         }
 
-        // Only process clustering if enabled
+        // Process clustering if enabled
         if (clusterSettings.EnableClustering)
         {
-            var clusters = FastIdentifyClusters(entities, clusterRadiusSq, clusterSettings.MinClusterSize.Value);
+            clusterManager.UpdateClusters(entities, clusterSettings.ClusterRadius.Value,
+                clusterSettings.MinClusterSize.Value);
             var entitiesInClusters = new HashSet<Entity>();
 
-            foreach (var cluster in clusters)
-            {
-                var center = cluster.Aggregate(Vector2.Zero, (current, entity) => current + entity.Entity.GridPos);
-                center /= cluster.Count;
+            foreach (var cluster in clusterManager.CurrentClusters)
+                ApplyClusterWeights(cluster, settings, entitiesInClusters);
 
-                var clusterBonus = Math.Min(
-                    1.0f + (cluster.Count - clusterSettings.MinClusterSize.Value) *
-                    clusterSettings.BaseClusterBonus.Value,
-                    clusterSettings.MaxClusterBonus.Value
-                );
-
-                foreach (var entity in cluster)
-                {
-                    entity.Weight *= clusterBonus;
-
-                    // Apply core bonus if enabled
-                    if (clusterSettings.EnableCoreBonus)
-                    {
-                        var distanceToCenter = Vector2.DistanceSquared(entity.Entity.GridPos, center);
-                        var coreRadiusSq = clusterRadiusSq * clusterSettings.CoreRadiusPercent.Value *
-                                           clusterSettings.CoreRadiusPercent.Value;
-
-                        if (distanceToCenter <= coreRadiusSq)
-                            entity.Weight *= clusterSettings.CoreBonusMultiplier.Value;
-                    }
-
-                    entitiesInClusters.Add(entity.Entity);
-                }
-            }
-
-            // Apply isolation penalty if enabled
+            // Apply isolation penalty
             if (clusterSettings.EnableIsolationPenalty)
-                for (var i = 0; i < entityCount; i++)
-                {
-                    var entity = entities[i];
-                    if (!entitiesInClusters.Contains(entity.Entity))
-                    {
-                        var rarity = _cachedRarities.TryGetValue(entity.Entity, out var r)
-                            ? r
-                            : entity.Entity.GetComponent<ObjectMagicProperties>()?.Rarity ?? MonsterRarity.White;
-
-                        // Only apply isolation penalty to white and magic monsters
-                        if (rarity == MonsterRarity.White || rarity == MonsterRarity.Magic)
-                            entity.Weight *= clusterSettings.IsolationPenaltyMultiplier.Value;
-                    }
-                }
+                ApplyIsolationPenalties(entities, entitiesInClusters, settings);
         }
 
         // Apply weight smoothing if enabled
@@ -99,7 +56,8 @@ public class TargetWeightCalculator
             ApplyWeightSmoothing(entities, settings.Targeting.Weights.Smoothing.SmoothingFactor.Value);
 
         // Cleanup old cache entries every 100 frames
-        if (Environment.TickCount % 100 == 0) CleanupCaches(entities);
+        if (Environment.TickCount % 100 == 0)
+            CleanupCaches(entities);
     }
 
     private float FastCalculateBaseWeight(TrackedEntity trackedEntity, float distance, AutoMyAimSettings settings)
@@ -149,30 +107,50 @@ public class TargetWeightCalculator
         return weight;
     }
 
-    private List<List<TrackedEntity>> FastIdentifyClusters(List<TrackedEntity> entities, float clusterRadiusSq,
-        int minClusterSize)
+    private void ApplyClusterWeights(ClusterInfo cluster, AutoMyAimSettings settings,
+        HashSet<Entity> entitiesInClusters)
     {
-        var clusters = new List<List<TrackedEntity>>();
-        var processed = new HashSet<TrackedEntity>();
+        var clusterSettings = settings.Targeting.Weights.Cluster;
+        var clusterBonus = Math.Min(
+            1.0f + (cluster.Entities.Count - clusterSettings.MinClusterSize.Value) *
+            clusterSettings.BaseClusterBonus.Value,
+            clusterSettings.MaxClusterBonus.Value
+        );
 
-        foreach (var entity in entities)
+        foreach (var entity in cluster.Entities)
         {
-            if (processed.Contains(entity)) continue;
+            entity.Weight *= clusterBonus;
 
-            var cluster = new List<TrackedEntity> { entity };
-            processed.Add(entity);
+            if (clusterSettings.EnableCoreBonus)
+                ApplyCoreBonus(entity, cluster, settings);
 
-            foreach (var other in entities.Where(other => !processed.Contains(other)).Where(other =>
-                         Vector2.DistanceSquared(entity.Entity.GridPos, other.Entity.GridPos) <= clusterRadiusSq))
-            {
-                cluster.Add(other);
-                processed.Add(other);
-            }
-
-            if (cluster.Count >= minClusterSize) clusters.Add(cluster);
+            entitiesInClusters.Add(entity.Entity);
         }
+    }
 
-        return clusters;
+    private void ApplyCoreBonus(TrackedEntity entity, ClusterInfo cluster, AutoMyAimSettings settings)
+    {
+        var clusterSettings = settings.Targeting.Weights.Cluster;
+        var distanceToCenter = Vector2.DistanceSquared(entity.Entity.GridPos, cluster.Center);
+        var coreRadiusSq = Math.Pow(cluster.Radius * clusterSettings.CoreRadiusPercent.Value, 2);
+
+        if (distanceToCenter <= coreRadiusSq)
+            entity.Weight *= clusterSettings.CoreBonusMultiplier.Value;
+    }
+
+    private void ApplyIsolationPenalties(List<TrackedEntity> entities, HashSet<Entity> entitiesInClusters,
+        AutoMyAimSettings settings)
+    {
+        foreach (var entity in entities)
+            if (!entitiesInClusters.Contains(entity.Entity))
+            {
+                var rarity = _cachedRarities.TryGetValue(entity.Entity, out var r)
+                    ? r
+                    : entity.Entity.GetComponent<ObjectMagicProperties>()?.Rarity ?? MonsterRarity.White;
+
+                if (rarity == MonsterRarity.White || rarity == MonsterRarity.Magic)
+                    entity.Weight *= settings.Targeting.Weights.Cluster.IsolationPenaltyMultiplier.Value;
+            }
     }
 
     private float GetRarityBaseWeight(MonsterRarity rarity, AutoMyAimSettings settings)

@@ -10,7 +10,7 @@ using ImGuiNET;
 
 namespace AutoMyAim;
 
-public class AimRenderer
+public class AimRenderer(ClusterManager clusterManager)
 {
     private readonly InputHandler _inputHandler = new();
     private ImDrawListPtr _drawList;
@@ -37,6 +37,7 @@ public class AimRenderer
 
         AutoMyAim.Main._rayCaster.Render(_drawList, gameController, raycastConfig);
         RenderEntityWeights(gameController, trackedEntities);
+        RenderClusters(gameController);
         RenderAimVisualization(gameController, currentTarget);
         ImGui.End();
     }
@@ -92,6 +93,15 @@ public class AimRenderer
                     AutoMyAim.Main.Settings.Render.WeightVisuals.WeightTextColor.Value.ToImgui(), text);
             }
         }
+    }
+
+    private void RenderClusters(GameController gameController)
+    {
+        if (!AutoMyAim.Main.Settings.Render.ShowDebug.Value ||
+            !AutoMyAim.Main.Settings.Targeting.Weights.Cluster.EnableClustering)
+            return;
+
+        clusterManager.Render(AutoMyAim.Main.Graphics, gameController.Player);
     }
 
     private void RenderAimVisualization(GameController gameController, TrackedEntity currentTarget)
