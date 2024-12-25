@@ -53,7 +53,8 @@ public class AimRenderer
         if (!AutoMyAim.Main.Settings.Render.Panels.RenderAndWorkOnFullPanels &&
             ingameUi.FullscreenPanels.Any(x => x.IsVisible))
             return false;
-        if (!AutoMyAim.Main.Settings.Render.Panels.RenderAndWorkOnleftPanels && ingameUi.OpenLeftPanel.IsVisible) return false;
+        if (!AutoMyAim.Main.Settings.Render.Panels.RenderAndWorkOnleftPanels &&
+            ingameUi.OpenLeftPanel.IsVisible) return false;
         return AutoMyAim.Main.Settings.Render.Panels.RenderAndWorkOnRightPanels || !ingameUi.OpenRightPanel.IsVisible;
     }
 

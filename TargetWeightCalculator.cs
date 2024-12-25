@@ -19,7 +19,6 @@ public class TargetWeightCalculator
     {
         if (!settings.Targeting.Weights.EnableWeighting) return;
 
-        var maxDistanceSq = settings.Targeting.MaxTargetDistance * settings.Targeting.MaxTargetDistance;
         var entityCount = entities.Count;
         var clusterSettings = settings.Targeting.Weights.Cluster;
 
