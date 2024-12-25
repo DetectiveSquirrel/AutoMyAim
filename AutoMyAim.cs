@@ -4,6 +4,7 @@ using System.Numerics;
 using AutoMyAim.Structs;
 using ExileCore2;
 using ExileCore2.PoEMemory.MemoryObjects;
+using ExileCore2.Shared;
 
 namespace AutoMyAim;
 
@@ -18,6 +19,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private readonly TargetWeightCalculator _weightCalculator;
     private TrackedEntity _currentTarget;
     private bool _isAimToggled;
+    public Vector2 _topLeftScreen;
+    public RectangleF GetWindowRectangleNormalized;
 
     public AutoMyAim()
     {
@@ -34,20 +37,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     {
         Main = this;
 
-        var raycastConfig = new RaycastRenderConfig
-        {
-            ShowRayLines = Settings.Raycast.Visuals.ShowRayLines,
-            ShowTerrainValues = Settings.Raycast.Visuals.ShowTerrainValues,
-            TargetLayerValue = Settings.Raycast.TargetLayerValue,
-            GridSize = Settings.Raycast.Visuals.GridSize,
-            RayLineThickness = Settings.Raycast.Visuals.RayLineThickness,
-            VisibleColor = Settings.Raycast.Visuals.Colors.Visible,
-            ShadowColor = Settings.Raycast.Visuals.Colors.Shadow,
-            RayLineColor = Settings.Raycast.Visuals.Colors.RayLine,
-            DrawAtPlayerPlane = Settings.Raycast.Visuals.DrawAtPlayerPlane
-        };
-        _rayCaster.InitializeConfig(raycastConfig);
-
+        // Register input handlers
         Input.RegisterKey(Settings.AimKey);
         Input.RegisterKey(Settings.AimToggleKey);
         Settings.AimKey.OnValueChanged += () => { Input.RegisterKey(Settings.AimKey); };
@@ -56,10 +46,13 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
             Input.RegisterKey(Settings.AimToggleKey);
             _isAimToggled = false;
         };
+
+        // Register terrain update handler
         Settings.UseWalkableTerrainInsteadOfTargetTerrain.OnValueChanged += (_, _) =>
         {
             _rayCaster.UpdateArea(GameController);
         };
+
         return true;
     }
 
@@ -75,6 +68,14 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     public override void Tick()
     {
         if (Settings.AimToggleKey.PressedOnce()) _isAimToggled = !_isAimToggled;
+        _topLeftScreen = GameController.Window.GetWindowRectangleTimeCache.TopLeft;
+
+        var windowRect = GameController.Window.GetWindowRectangleReal();
+        GetWindowRectangleNormalized = new RectangleF(
+            windowRect.X - _topLeftScreen.X,
+            windowRect.Y - _topLeftScreen.Y,
+            windowRect.Width,
+            windowRect.Height);
 
         if (!ShouldProcess()) return;
         if (!_isAimToggled && !Input.GetKeyState(Settings.AimKey.Value)) return;
@@ -94,9 +95,9 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         _rayCaster.UpdateObserver(currentPos, potentialTargets);
 
         _entityScanner.ProcessVisibleEntities(currentPos);
-        _entityScanner.UpdateEntityWeights(currentPos); // Use EntityScanner's method instead
+        _entityScanner.UpdateEntityWeights(currentPos);
 
-        var sortedEntities = _entityScanner.GetTrackedEntities(); // They're already sorted now
+        var sortedEntities = _entityScanner.GetTrackedEntities();
         if (!sortedEntities.Any()) return;
 
         var (targetEntity, rawPosToAim) = GetTargetEntityAndPosition(sortedEntities);
@@ -114,7 +115,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
             {
                 var pos = GameController.IngameState.Camera.WorldToScreen(entity.Entity.Pos);
                 if (pos != Vector2.Zero &&
-                    _inputHandler.IsValidClickPosition(pos, GameController.Window.GetWindowRectangle()))
+                    _inputHandler.IsValidClickPosition(pos, GetWindowRectangleNormalized))
                     return (entity, pos);
             }
 
@@ -130,26 +131,25 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     {
         if (_currentTarget == null) return;
 
-        var window = GameController.Window.GetWindowRectangle();
-        var safePosToAim = _inputHandler.GetSafeAimPosition(rawPosToAim, window);
+        var safePosToAim = _inputHandler.GetSafeAimPosition(rawPosToAim, GetWindowRectangleNormalized);
 
         if (Settings.Render.Cursor.ConfineCursorToCircle)
         {
-            var screenCenter = new Vector2(window.Width / 2, window.Height / 2);
-            var vectorToTarget = safePosToAim - screenCenter;
+            var vectorToTarget = safePosToAim - GetWindowRectangleNormalized.Center;
             var distanceToTarget = vectorToTarget.Length();
 
             if (distanceToTarget > Settings.Render.Cursor.CursorCircleRadius)
             {
                 vectorToTarget = Vector2.Normalize(vectorToTarget) * Settings.Render.Cursor.CursorCircleRadius;
-                safePosToAim = screenCenter + vectorToTarget;
+                safePosToAim = GetWindowRectangleNormalized.Center + vectorToTarget;
             }
         }
 
-        if (_inputHandler.IsValidClickPosition(safePosToAim, window))
+        if (_inputHandler.IsValidClickPosition(safePosToAim, GetWindowRectangleNormalized))
         {
-            var randomizedPos = _inputHandler.GetRandomizedAimPosition(safePosToAim, window);
-            if (_inputHandler.IsValidClickPosition(randomizedPos, window)) Input.SetCursorPos(randomizedPos);
+            var randomizedPos = _inputHandler.GetRandomizedAimPosition(safePosToAim, GetWindowRectangleNormalized);
+            if (_inputHandler.IsValidClickPosition(randomizedPos, GetWindowRectangleNormalized))
+                Input.SetCursorPos(randomizedPos + _topLeftScreen);
         }
     }
 
@@ -170,8 +170,10 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     {
         if (ingameUi == null) return false;
         if (!Settings.Render.Panels.RenderAndWorkOnFullPanels &&
-            ingameUi.FullscreenPanels.Any(x => x.IsVisible)) return false;
-        if (!Settings.Render.Panels.RenderAndWorkOnleftPanels && ingameUi.OpenLeftPanel.IsVisible) return false;
+            ingameUi.FullscreenPanels.Any(x => x.IsVisible))
+            return false;
+        if (!Settings.Render.Panels.RenderAndWorkOnleftPanels && ingameUi.OpenLeftPanel.IsVisible)
+            return false;
         return Settings.Render.Panels.RenderAndWorkOnRightPanels || !ingameUi.OpenRightPanel.IsVisible;
     }
 }

@@ -1,45 +1,32 @@
 ﻿using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Numerics;
 using AutoMyAim.Structs;
 using ExileCore2;
 using ExileCore2.PoEMemory.MemoryObjects;
-using ExileCore2.Shared;
-using ExileCore2.Shared.Helpers;
-using ImGuiNET;
 
 namespace AutoMyAim;
 
-public class AimRenderer(ClusterManager clusterManager)
+public class AimRenderer
 {
-    private readonly InputHandler _inputHandler = new();
-    private ImDrawListPtr _drawList;
+    private readonly ClusterManager _clusterManager;
+    private readonly InputHandler _inputHandler;
+
+    public AimRenderer(ClusterManager clusterManager)
+    {
+        _clusterManager = clusterManager;
+        _inputHandler = new InputHandler();
+    }
 
     public void Render(GameController gameController, TrackedEntity currentTarget, List<TrackedEntity> trackedEntities)
     {
         if (!ShouldDraw(gameController)) return;
 
-        var rect = gameController.Window.GetWindowRectangle() with { Location = Vector2.Zero };
-        SetupImGuiWindow(rect);
-
-        var raycastConfig = new RaycastRenderConfig
-        {
-            ShowRayLines = AutoMyAim.Main.Settings.Raycast.Visuals.ShowRayLines,
-            ShowTerrainValues = AutoMyAim.Main.Settings.Raycast.Visuals.ShowTerrainValues,
-            TargetLayerValue = AutoMyAim.Main.Settings.Raycast.TargetLayerValue,
-            GridSize = AutoMyAim.Main.Settings.Raycast.Visuals.GridSize,
-            RayLineThickness = AutoMyAim.Main.Settings.Raycast.Visuals.RayLineThickness,
-            VisibleColor = AutoMyAim.Main.Settings.Raycast.Visuals.Colors.Visible,
-            ShadowColor = AutoMyAim.Main.Settings.Raycast.Visuals.Colors.Shadow,
-            RayLineColor = AutoMyAim.Main.Settings.Raycast.Visuals.Colors.RayLine,
-            DrawAtPlayerPlane = AutoMyAim.Main.Settings.Raycast.Visuals.DrawAtPlayerPlane
-        };
-
-        AutoMyAim.Main._rayCaster.Render(_drawList, gameController, raycastConfig);
+        AutoMyAim.Main._rayCaster.Render(gameController);
         RenderEntityWeights(gameController, trackedEntities);
         RenderClusters(gameController);
         RenderAimVisualization(gameController, currentTarget);
-        ImGui.End();
     }
 
     private bool ShouldDraw(GameController gameController)
@@ -59,25 +46,6 @@ public class AimRenderer(ClusterManager clusterManager)
         return AutoMyAim.Main.Settings.Render.Panels.RenderAndWorkOnRightPanels || !ingameUi.OpenRightPanel.IsVisible;
     }
 
-    private void SetupImGuiWindow(RectangleF rect)
-    {
-        ImGui.SetNextWindowSize(new Vector2(rect.Width, rect.Height));
-        ImGui.SetNextWindowPos(new Vector2(rect.Left, rect.Top));
-
-        const ImGuiWindowFlags flags =
-            ImGuiWindowFlags.NoDecoration |
-            ImGuiWindowFlags.NoInputs |
-            ImGuiWindowFlags.NoMove |
-            ImGuiWindowFlags.NoScrollWithMouse |
-            ImGuiWindowFlags.NoSavedSettings |
-            ImGuiWindowFlags.NoFocusOnAppearing |
-            ImGuiWindowFlags.NoBringToFrontOnFocus |
-            ImGuiWindowFlags.NoBackground;
-
-        ImGui.Begin("VisibilitySystem_DrawRegion", flags);
-        _drawList = ImGui.GetWindowDrawList();
-    }
-
     private void RenderEntityWeights(GameController gameController, List<TrackedEntity> trackedEntities)
     {
         if (!AutoMyAim.Main.Settings.Targeting.Weights.EnableWeighting ||
@@ -89,8 +57,8 @@ public class AimRenderer(ClusterManager clusterManager)
             if (screenPos != Vector2.Zero)
             {
                 var text = $"({trackedEntity.Weight:F1})";
-                _drawList.AddText(screenPos,
-                    AutoMyAim.Main.Settings.Render.WeightVisuals.WeightTextColor.Value.ToImgui(), text);
+                AutoMyAim.Main.Graphics.DrawText(text, screenPos,
+                    AutoMyAim.Main.Settings.Render.WeightVisuals.WeightTextColor.Value);
             }
         }
     }
@@ -101,19 +69,44 @@ public class AimRenderer(ClusterManager clusterManager)
             !AutoMyAim.Main.Settings.Targeting.Weights.Cluster.EnableClustering)
             return;
 
-        clusterManager.Render(AutoMyAim.Main.Graphics, gameController.Player);
+        _clusterManager.Render(AutoMyAim.Main.Graphics, gameController.Player);
     }
 
     private void RenderAimVisualization(GameController gameController, TrackedEntity currentTarget)
     {
-        if (AutoMyAim.Main.Settings.Render.Cursor.ConfineCursorToCircle)
+        var windowRect = AutoMyAim.Main.GetWindowRectangleNormalized;
+
+        if (AutoMyAim.Main.Settings.Render.ShowDebug)
         {
-            var screenCenter = new Vector2(
-                gameController.Window.GetWindowRectangle().Width / 2,
-                gameController.Window.GetWindowRectangle().Height / 2
+            // Draw cursor confinement circle if enabled
+            if (AutoMyAim.Main.Settings.Render.Cursor.ConfineCursorToCircle)
+                AutoMyAim.Main.Graphics.DrawCircle(
+                    AutoMyAim.Main.GetWindowRectangleNormalized.Center,
+                    AutoMyAim.Main.Settings.Render.Cursor.CursorCircleRadius,
+                    Color.FromArgb(125, 255, 255, 0),
+                    1,
+                    50
+                );
+
+            // Draw outer window bounds
+            AutoMyAim.Main.Graphics.DrawFrame(
+                new Vector2(0, 0),
+                new Vector2(windowRect.Width, windowRect.Height),
+                Color.FromArgb(125, 255, 255, 0),
+                1
             );
-            _drawList.AddCircle(screenCenter, AutoMyAim.Main.Settings.Render.Cursor.CursorCircleRadius,
-                ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 0, 0.5f)), 64, 1f);
+
+            // Draw inner safe zone with padding
+            var padding = AutoMyAim.Main.Settings.Render.Panels.Padding;
+            AutoMyAim.Main.Graphics.DrawFrame(
+                new Vector2(padding.Left.Value, padding.Top.Value),
+                new Vector2(
+                    windowRect.Width - padding.Right.Value,
+                    windowRect.Height - padding.Bottom.Value
+                ),
+                Color.FromArgb(125, 0, 255, 255),
+                1
+            );
         }
 
         if (currentTarget == null) return;
@@ -121,29 +114,16 @@ public class AimRenderer(ClusterManager clusterManager)
         var rawPosToAim = gameController.IngameState.Camera.WorldToScreen(currentTarget.Entity.Pos);
         if (rawPosToAim == Vector2.Zero) return;
 
-        var window = gameController.Window.GetWindowRectangle();
-        var safePosToAim = _inputHandler.GetSafeAimPosition(rawPosToAim, window);
-        if (!_inputHandler.IsValidClickPosition(safePosToAim, window)) return;
+        var safePosToAim = _inputHandler.GetSafeAimPosition(rawPosToAim, windowRect);
+        if (!_inputHandler.IsValidClickPosition(safePosToAim, windowRect)) return;
 
-        _drawList.AddCircle(safePosToAim, AutoMyAim.Main.Settings.Render.Cursor.AcceptableRadius,
-            AutoMyAim.Main.Settings.Render.WeightVisuals.WeightTextColor.Value.ToImgui(), 32, 1f);
-
-        if (AutoMyAim.Main.Settings.Render.ShowDebug)
-        {
-            var safeZone = new RectangleF(
-                window.X + AutoMyAim.Main.Settings.Render.Panels.Padding.Left.Value,
-                window.Y + AutoMyAim.Main.Settings.Render.Panels.Padding.Top.Value,
-                window.Width - (AutoMyAim.Main.Settings.Render.Panels.Padding.Left.Value +
-                                AutoMyAim.Main.Settings.Render.Panels.Padding.Right.Value),
-                window.Height - (AutoMyAim.Main.Settings.Render.Panels.Padding.Top.Value +
-                                 AutoMyAim.Main.Settings.Render.Panels.Padding.Bottom.Value)
-            );
-
-            _drawList.AddRect(
-                new Vector2(safeZone.Left, safeZone.Top),
-                new Vector2(safeZone.Right, safeZone.Bottom),
-                ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 0, 0.5f))
-            );
-        }
+        // Draw cursor target circle directly at screen coordinates
+        AutoMyAim.Main.Graphics.DrawCircle(
+            safePosToAim,
+            AutoMyAim.Main.Settings.Render.Cursor.AcceptableRadius,
+            AutoMyAim.Main.Settings.Render.WeightVisuals.WeightTextColor.Value,
+            1,
+            25
+        );
     }
 }

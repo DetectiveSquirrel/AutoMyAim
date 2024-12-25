@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Numerics;
-using AutoMyAim.Structs;
 using ExileCore2;
+using ExileCore2.Shared.Enums;
 using ExileCore2.Shared.Helpers;
-using ImGuiNET;
 
 namespace AutoMyAim;
 
@@ -16,15 +16,9 @@ public class RayCaster
     private readonly HashSet<Vector2> _visibleTargets = [];
 
     private Vector2 _areaDimensions;
-    private RaycastRenderConfig _currentConfig;
     private Vector2 _observerPos;
     private float _observerZ;
     private int[][] _terrainData;
-
-    public void InitializeConfig(RaycastRenderConfig config)
-    {
-        _currentConfig = config;
-    }
 
     public void UpdateArea(GameController gameController)
     {
@@ -33,6 +27,7 @@ public class RayCaster
         var rawData = AutoMyAim.Main.Settings.UseWalkableTerrainInsteadOfTargetTerrain
             ? gameController.IngameState.Data.RawPathfindingData
             : gameController.IngameState.Data.RawTerrainTargetingData;
+
         _terrainData = new int[rawData.Length][];
         for (var y = 0; y < rawData.Length; y++)
         {
@@ -48,10 +43,8 @@ public class RayCaster
         _targetRays.Clear();
         _visiblePoints.Clear();
 
-        // Generate grid points for visualization
         GenerateGridPoints();
 
-        // Process actual target checks and collect points along the way
         if (targetPositions != null)
             foreach (var targetPos in targetPositions)
             {
@@ -63,10 +56,8 @@ public class RayCaster
 
     private void GenerateGridPoints()
     {
-        if (_currentConfig == null) return;
-
         _gridPointsCache.Clear();
-        var size = _currentConfig.GridSize.Value;
+        var size = AutoMyAim.Main.Settings.Raycast.Visuals.GridSize.Value;
 
         for (var y = -size; y <= size; y++)
         for (var x = -size; x <= size; x++)
@@ -100,6 +91,8 @@ public class RayCaster
         var stepX = startX < endX ? 1 : -1;
         var stepY = startY < endY ? 1 : -1;
 
+        var targetLayerValue = AutoMyAim.Main.Settings.Raycast.TargetLayerValue.Value;
+
         // Handle straight lines efficiently
         if (dx == 0)
         {
@@ -110,9 +103,9 @@ public class RayCaster
                 y += step;
                 var pos = new Vector2(x, y);
                 var terrainValue = GetTerrainValue(pos);
-                _visiblePoints.Add(pos); // Add point for visualization
-                if (terrainValue < _currentConfig.TargetLayerValue.Value) continue;
-                if (terrainValue <= _currentConfig.TargetLayerValue.Value) return false;
+                _visiblePoints.Add(pos);
+                if (terrainValue < targetLayerValue) continue;
+                if (terrainValue <= targetLayerValue) return false;
             }
 
             return true;
@@ -127,9 +120,9 @@ public class RayCaster
                 x += step;
                 var pos = new Vector2(x, y);
                 var terrainValue = GetTerrainValue(pos);
-                _visiblePoints.Add(pos); // Add point for visualization
-                if (terrainValue < _currentConfig.TargetLayerValue.Value) continue;
-                if (terrainValue <= _currentConfig.TargetLayerValue.Value) return false;
+                _visiblePoints.Add(pos);
+                if (terrainValue < targetLayerValue) continue;
+                if (terrainValue <= targetLayerValue) return false;
             }
 
             return true;
@@ -155,9 +148,9 @@ public class RayCaster
 
                 var pos = new Vector2(x, y);
                 var terrainValue = GetTerrainValue(pos);
-                _visiblePoints.Add(pos); // Add point for visualization
-                if (terrainValue < _currentConfig.TargetLayerValue.Value) continue;
-                if (terrainValue <= _currentConfig.TargetLayerValue.Value) return false;
+                _visiblePoints.Add(pos);
+                if (terrainValue < targetLayerValue) continue;
+                if (terrainValue <= targetLayerValue) return false;
             }
         }
         else
@@ -177,9 +170,9 @@ public class RayCaster
 
                 var pos = new Vector2(x, y);
                 var terrainValue = GetTerrainValue(pos);
-                _visiblePoints.Add(pos); // Add point for visualization
-                if (terrainValue < _currentConfig.TargetLayerValue.Value) continue;
-                if (terrainValue <= _currentConfig.TargetLayerValue.Value) return false;
+                _visiblePoints.Add(pos);
+                if (terrainValue < targetLayerValue) continue;
+                if (terrainValue <= targetLayerValue) return false;
             }
         }
 
@@ -188,9 +181,7 @@ public class RayCaster
 
     private bool HasLineOfSight(Vector2 start, Vector2 end)
     {
-        return
-            HasLineOfSightAndCollectPoints(start,
-                end); // For now reuse the collecting version because i cant be bothered changing it
+        return HasLineOfSightAndCollectPoints(start, end);
     }
 
     private int GetTerrainValue(Vector2 position)
@@ -203,49 +194,71 @@ public class RayCaster
             : -1;
     }
 
-    public void Render(ImDrawListPtr drawList, GameController gameController, RaycastRenderConfig config)
+    public void Render(GameController gameController)
     {
-        _currentConfig.ShowRayLines = config.ShowRayLines;
-        _currentConfig.ShowTerrainValues = config.ShowTerrainValues;
-        _currentConfig.VisibleColor = config.VisibleColor;
-        _currentConfig.ShadowColor = config.ShadowColor;
-        _currentConfig.RayLineColor = config.RayLineColor;
-        _currentConfig.DrawAtPlayerPlane = config.DrawAtPlayerPlane;
         _observerZ = gameController.IngameState.Data.GetTerrainHeightAt(_observerPos);
 
-        // Draw terrain grid
-        if (config.ShowTerrainValues)
-            foreach (var (pos, value) in _gridPointsCache)
-            {
-                var z = config.DrawAtPlayerPlane ? _observerZ : gameController.IngameState.Data.GetTerrainHeightAt(pos);
-                var worldPos = new Vector3(pos.GridToWorld(), z);
-                var screenPos = gameController.IngameState.Camera.WorldToScreen(worldPos);
-                var color = _visiblePoints.Contains(pos)
-                    ? config.VisibleColor.Value.ToImgui()
-                    : config.ShadowColor.Value.ToImgui();
+        if (AutoMyAim.Main.Settings.Raycast.Visuals.ShowTerrainValues)
+            RenderTerrainGrid(gameController);
 
-                drawList.AddText(screenPos, color, value.ToString());
-            }
+        if (AutoMyAim.Main.Settings.Raycast.Visuals.ShowRayLines)
+            RenderRayLines(gameController);
+    }
 
-        // Draw ray lines to targets
-        if (config.ShowRayLines)
-            foreach (var (start, end, isVisible) in _targetRays)
-            {
-                var startWorld = new Vector3(start.GridToWorld(), _observerZ);
-                var endWorld = new Vector3(end.GridToWorld(), _observerZ);
+    private void RenderTerrainGrid(GameController gameController)
+    {
+        foreach (var (pos, value) in _gridPointsCache)
+        {
+            var z = AutoMyAim.Main.Settings.Raycast.Visuals.DrawAtPlayerPlane
+                ? _observerZ
+                : gameController.IngameState.Data.GetTerrainHeightAt(pos);
+            var worldPos = new Vector3(pos.GridToWorld(), z);
+            var screenPos = gameController.IngameState.Camera.WorldToScreen(worldPos);
 
-                var startScreen = gameController.IngameState.Camera.WorldToScreen(startWorld);
-                var endScreen = gameController.IngameState.Camera.WorldToScreen(endWorld);
+            Color color;
+            if (_visiblePoints.Contains(pos))
+                color = AutoMyAim.Main.Settings.Raycast.Visuals.EntityColors.Visible.Value;
+            else if (AutoMyAim.Main.Settings.Raycast.Visuals.TerrainColors.EnableTerrainColorization &&
+                     value >= 0 && value <= 5)
+                // Get the appropriate terrain color based on value
+                color = value switch
+                {
+                    0 => AutoMyAim.Main.Settings.Raycast.Visuals.TerrainColors.Tile0.Value,
+                    1 => AutoMyAim.Main.Settings.Raycast.Visuals.TerrainColors.Tile1.Value,
+                    2 => AutoMyAim.Main.Settings.Raycast.Visuals.TerrainColors.Tile2.Value,
+                    3 => AutoMyAim.Main.Settings.Raycast.Visuals.TerrainColors.Tile3.Value,
+                    4 => AutoMyAim.Main.Settings.Raycast.Visuals.TerrainColors.Tile4.Value,
+                    5 => AutoMyAim.Main.Settings.Raycast.Visuals.TerrainColors.Tile5.Value,
+                    _ => AutoMyAim.Main.Settings.Raycast.Visuals.EntityColors.Shadow.Value
+                };
+            else
+                color = AutoMyAim.Main.Settings.Raycast.Visuals.EntityColors.Shadow.Value;
 
-                drawList.AddLine(
-                    startScreen,
-                    endScreen,
-                    config.RayLineColor.Value.ToImgui(),
-                    config.RayLineThickness
-                );
+            AutoMyAim.Main.Graphics.DrawText(value.ToString(), screenPos, color, FontAlign.Center);
+        }
+    }
 
-                var pointColor = isVisible ? config.VisibleColor.Value.ToImgui() : config.ShadowColor.Value.ToImgui();
-                drawList.AddCircleFilled(endScreen, 5f, pointColor);
-            }
+    private void RenderRayLines(GameController gameController)
+    {
+        foreach (var (start, end, isVisible) in _targetRays)
+        {
+            var startWorld = new Vector3(start.GridToWorld(), _observerZ);
+            var endWorld = new Vector3(end.GridToWorld(), _observerZ);
+
+            var startScreen = gameController.IngameState.Camera.WorldToScreen(startWorld);
+            var endScreen = gameController.IngameState.Camera.WorldToScreen(endWorld);
+
+            AutoMyAim.Main.Graphics.DrawLine(
+                startScreen,
+                endScreen,
+                AutoMyAim.Main.Settings.Raycast.Visuals.RayLineThickness,
+                AutoMyAim.Main.Settings.Raycast.Visuals.EntityColors.RayLine.Value
+            );
+
+            var pointColor = isVisible
+                ? AutoMyAim.Main.Settings.Raycast.Visuals.EntityColors.Visible.Value
+                : AutoMyAim.Main.Settings.Raycast.Visuals.EntityColors.Shadow.Value;
+            AutoMyAim.Main.Graphics.DrawCircleFilled(endScreen, 5f, pointColor, 25);
+        }
     }
 }

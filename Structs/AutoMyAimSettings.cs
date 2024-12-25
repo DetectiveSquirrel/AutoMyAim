@@ -146,12 +146,10 @@ public class TargetingSettings
         public RangeNode<float> Weight { get; set; } = new(2.0f, 0f, 10f);
     }
 }
-
 [Submenu(CollapsedByDefault = true)]
 public class RaycastSettings
 {
     public RangeNode<int> TargetLayerValue { get; set; } = new(2, 0, 5);
-
     public VisualsSettings Visuals { get; set; } = new();
 
     [Submenu(CollapsedByDefault = false)]
@@ -163,14 +161,27 @@ public class RaycastSettings
         public ToggleNode ShowTerrainValues { get; set; } = new(true);
         public RangeNode<float> RayLineThickness { get; set; } = new(2.0f, 1.0f, 5.0f);
 
-        public ColorSettings Colors { get; set; } = new();
+        public EntityVisibilityColors EntityColors { get; set; } = new();
+        public TerrainColor TerrainColors { get; set; } = new();
 
-        [Submenu(CollapsedByDefault = true)]
-        public class ColorSettings
+        [Submenu(CollapsedByDefault = false)]
+        public class EntityVisibilityColors
         {
-            public ColorNode Visible { get; set; } = new(Color.FromArgb(92, 255, 245, 0));
-            public ColorNode Shadow { get; set; } = new(Color.FromArgb(156, 255, 0, 0));
-            public ColorNode RayLine { get; set; } = new(Color.FromArgb(94, 35, 245, 0));
+            public ColorNode Visible { get; set; } = new(Color.FromArgb(200, 35, 245, 0));
+            public ColorNode Shadow { get; set; } = new(Color.FromArgb(200, 255, 0, 0));
+            public ColorNode RayLine { get; set; } = new(Color.FromArgb(200, 35, 245, 0));
+        }
+
+        [Submenu(CollapsedByDefault = false)]
+        public class TerrainColor
+        {
+            public ToggleNode EnableTerrainColorization { get; set; } = new(true);
+            public ColorNode Tile5 { get; set; } = new(Color.FromArgb(150, 50, 200, 50));
+            public ColorNode Tile4 { get; set; } = new(Color.FromArgb(150, 100, 180, 50));
+            public ColorNode Tile3 { get; set; } = new(Color.FromArgb(150, 150, 160, 50));
+            public ColorNode Tile2 { get; set; } = new(Color.FromArgb(150, 180, 140, 50));
+            public ColorNode Tile1 { get; set; } = new(Color.FromArgb(150, 200, 120, 50));
+            public ColorNode Tile0 { get; set; } = new(Color.FromArgb(150, 220, 100, 50));
         }
     }
 }

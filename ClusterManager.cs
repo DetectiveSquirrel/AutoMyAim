@@ -7,7 +7,6 @@ using ExileCore2.PoEMemory.Components;
 using ExileCore2.PoEMemory.MemoryObjects;
 using ExileCore2.Shared.Enums;
 using ExileCore2.Shared.Helpers;
-using ImGuiNET;
 using Graphics = ExileCore2.Graphics;
 
 namespace AutoMyAim;
@@ -54,7 +53,7 @@ public class ClusterManager
                 {
                     var stats = GetClusterStats(cluster);
                     var text = $"Size: {cluster.Entities.Count}\n{stats}";
-                    ImGui.GetWindowDrawList().AddText(screenPos, textColor.ToImgui(), text);
+                    AutoMyAim.Main.Graphics.DrawText(text, screenPos, textColor);
                 }
             }
         }

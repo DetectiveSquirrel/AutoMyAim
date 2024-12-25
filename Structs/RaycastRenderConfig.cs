@@ -8,11 +8,15 @@ public class RaycastRenderConfig
     public ToggleNode ShowTerrainValues { get; set; }
     public RangeNode<int> TargetLayerValue { get; set; }
     public RangeNode<int> GridSize { get; set; }
-    public RangeNode<int> RayLength { get; set; }
-    public RangeNode<int> RayCount { get; set; }
     public RangeNode<float> RayLineThickness { get; set; }
+    public ToggleNode DrawAtPlayerPlane { get; set; }
+
+    // Entity visibility colors
     public ColorNode VisibleColor { get; set; }
     public ColorNode ShadowColor { get; set; }
     public ColorNode RayLineColor { get; set; }
-    public ToggleNode DrawAtPlayerPlane { get; set; }
+
+    // Terrain colorization
+    public ToggleNode EnableTerrainColorization { get; set; }
+    public ColorNode[] TerrainColors { get; set; }
 }
