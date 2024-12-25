@@ -33,15 +33,13 @@ public class EntityScanner
         var scanDistance = AutoMyAim.Main.Settings.Targeting.EntityScanDistance.Value;
 
         foreach (var entity in gameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster]
+                     .Where(x => x.DistancePlayer <= scanDistance)
                      .Where(x => !ShouldExcludeEntity(x)))
         {
             if (!IsEntityValid(entity)) continue;
 
-            if (entity.DistancePlayer <= scanDistance)
-            {
-                _inRangeEntities.Add(entity);
-                positions.Add(entity.GridPos);
-            }
+            _inRangeEntities.Add(entity);
+            positions.Add(entity.GridPos);
         }
 
         return positions;
