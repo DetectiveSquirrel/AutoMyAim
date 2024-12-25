@@ -37,8 +37,7 @@ public class EntityScanner
         {
             if (!IsEntityValid(entity)) continue;
 
-            var distance = Vector2.Distance(playerPos, entity.GridPos);
-            if (distance <= scanDistance)
+            if (entity.DistancePlayer <= scanDistance)
             {
                 _inRangeEntities.Add(entity);
                 positions.Add(entity.GridPos);
