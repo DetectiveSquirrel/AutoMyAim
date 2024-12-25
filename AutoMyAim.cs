@@ -16,7 +16,6 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private readonly AimRenderer _renderer;
     private TrackedEntity _currentTarget;
     private bool _isAimToggled;
-    private Vector2 _lastPlayerPos;
 
     public AutoMyAim()
     {
@@ -36,9 +35,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
             ShowRayLines = Settings.Raycast.Visuals.ShowRayLines,
             ShowTerrainValues = Settings.Raycast.Visuals.ShowTerrainValues,
             TargetLayerValue = Settings.Raycast.TargetLayerValue,
-            GridSize = Settings.Raycast.GridSize,
-            RayLength = Settings.Raycast.Length,
-            RayCount = Settings.Raycast.Count,
+            GridSize = Settings.Raycast.Visuals.GridSize,
             RayLineThickness = Settings.Raycast.Visuals.RayLineThickness,
             VisibleColor = Settings.Raycast.Visuals.Colors.Visible,
             ShadowColor = Settings.Raycast.Visuals.Colors.Shadow,
@@ -82,10 +79,12 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private void ProcessAiming(Entity player)
     {
         var currentPos = player.GridPos;
-        _lastPlayerPos = currentPos;
-        _rayCaster.UpdateObserver(currentPos);
 
-        _entityScanner.ScanForEntities(currentPos, GameController);
+        var potentialTargets = _entityScanner.ScanForInRangeEntities(currentPos, GameController);
+
+        _rayCaster.UpdateObserver(currentPos, potentialTargets);
+
+        _entityScanner.ProcessVisibleEntities(currentPos);
         _entityScanner.UpdateEntityWeights(currentPos);
 
         var sortedEntities = _entityScanner.GetTrackedEntities().OrderByDescending(x => x.Weight).ToList();

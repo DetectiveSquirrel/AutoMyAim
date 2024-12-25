@@ -137,9 +137,6 @@ public class TargetingSettings
 [Submenu(CollapsedByDefault = true)]
 public class RaycastSettings
 {
-    public RangeNode<int> Length { get; set; } = new(140, 1, 1000);
-    public RangeNode<int> Count { get; set; } = new(600, 8, 720);
-    public RangeNode<int> GridSize { get; set; } = new(80, 1, 1000);
     public RangeNode<int> TargetLayerValue { get; set; } = new(2, 0, 5);
 
     public VisualsSettings Visuals { get; set; } = new();
@@ -147,10 +144,11 @@ public class RaycastSettings
     [Submenu(CollapsedByDefault = false)]
     public class VisualsSettings
     {
+        public RangeNode<int> GridSize { get; set; } = new(80, 1, 1000);
         public ToggleNode DrawAtPlayerPlane { get; set; } = new(true);
         public ToggleNode ShowRayLines { get; set; } = new(true);
         public ToggleNode ShowTerrainValues { get; set; } = new(true);
-        public RangeNode<float> RayLineThickness { get; set; } = new(1.0f, 1.0f, 5.0f);
+        public RangeNode<float> RayLineThickness { get; set; } = new(2.0f, 1.0f, 5.0f);
 
         public ColorSettings Colors { get; set; } = new();
 

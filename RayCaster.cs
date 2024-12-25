@@ -11,14 +11,15 @@ namespace AutoMyAim;
 public class RayCaster
 {
     private readonly List<(Vector2 Pos, int Value)> _gridPointsCache = [];
-    private readonly List<(Vector2 Start, Vector2 End)> _rayLines = [];
-    private readonly HashSet<Vector2> _visiblePoints = [];
+    private readonly List<(Vector2 Start, Vector2 End, bool IsVisible)> _targetRays = [];
+    private readonly HashSet<Vector2> _visiblePoints = []; // For visualization only
+    private readonly HashSet<Vector2> _visibleTargets = [];
 
     private Vector2 _areaDimensions;
     private RaycastRenderConfig _currentConfig;
     private Vector2 _observerPos;
     private float _observerZ;
-    private int[][] _pathfindingCache;
+    private int[][] _terrainData;
 
     public void InitializeConfig(RaycastRenderConfig config)
     {
@@ -27,30 +28,38 @@ public class RayCaster
 
     public void UpdateArea(GameController gameController)
     {
-        var rawData = gameController.IngameState.Data.RawTerrainTargetingData;
         _areaDimensions = gameController.IngameState.Data.AreaDimensions;
 
-        _pathfindingCache = new int[rawData.Length][];
+        var rawData = gameController.IngameState.Data.RawTerrainTargetingData;
+        _terrainData = new int[rawData.Length][];
         for (var y = 0; y < rawData.Length; y++)
         {
-            _pathfindingCache[y] = new int[rawData[y].Length];
-            Array.Copy(rawData[y], _pathfindingCache[y], rawData[y].Length);
+            _terrainData[y] = new int[rawData[y].Length];
+            Array.Copy(rawData[y], _terrainData[y], rawData[y].Length);
         }
     }
 
-    public void UpdateObserver(Vector2 position)
+    public void UpdateObserver(Vector2 position, List<Vector2> targetPositions = null)
     {
         _observerPos = position;
-        GeneratePoints();
-        CastRays();
+        _visibleTargets.Clear();
+        _targetRays.Clear();
+        _visiblePoints.Clear();
+
+        // Generate grid points for visualization
+        GenerateGridPoints();
+
+        // Process actual target checks and collect points along the way
+        if (targetPositions != null)
+            foreach (var targetPos in targetPositions)
+            {
+                var isVisible = HasLineOfSightAndCollectPoints(_observerPos, targetPos);
+                _targetRays.Add((_observerPos, targetPos, isVisible));
+                if (isVisible) _visibleTargets.Add(targetPos);
+            }
     }
 
-    public bool IsPositionVisible(Vector2 position)
-    {
-        return _visiblePoints.Contains(position);
-    }
-
-    private void GeneratePoints()
+    private void GenerateGridPoints()
     {
         if (_currentConfig == null) return;
 
@@ -63,94 +72,162 @@ public class RayCaster
             if (x * x + y * y > size * size) continue;
 
             var pos = new Vector2(_observerPos.X + x, _observerPos.Y + y);
-            var value = GetPathfindingValue(pos);
+            var value = GetTerrainValue(pos);
             if (value >= 0) _gridPointsCache.Add((pos, value));
         }
     }
 
-    private void CastRays()
+    public bool IsPositionVisible(Vector2 position)
     {
-        if (_currentConfig == null) return;
-
-        _visiblePoints.Clear();
-        _rayLines.Clear();
-        _visiblePoints.Add(_observerPos);
-
-        var angleStep = 360f / _currentConfig.RayCount.Value;
-        for (var angle = 0f; angle < 360; angle += angleStep)
-        {
-            var radians = angle * (float)Math.PI / 180f;
-            var direction = new Vector2((float)Math.Cos(radians), (float)Math.Sin(radians));
-            CastRay(_observerPos, Vector2.Normalize(direction));
-        }
+        return _visibleTargets.Contains(position) || HasLineOfSight(_observerPos, position);
     }
 
-    private void CastRay(Vector2 start, Vector2 direction)
+    private bool HasLineOfSightAndCollectPoints(Vector2 start, Vector2 end)
     {
-        var mapPos = new Vector2((int)start.X, (int)start.Y);
-        var deltaDist = new Vector2(Math.Abs(1f / direction.X), Math.Abs(1f / direction.Y));
-        var step = new Vector2(direction.X < 0 ? -1 : 1, direction.Y < 0 ? -1 : 1);
-        var sideDist = new Vector2(
-            (direction.X < 0 ? start.X - mapPos.X : mapPos.X + 1f - start.X) * deltaDist.X,
-            (direction.Y < 0 ? start.Y - mapPos.Y : mapPos.Y + 1f - start.Y) * deltaDist.Y
-        );
+        var startX = (int)start.X;
+        var startY = (int)start.Y;
+        var endX = (int)end.X;
+        var endY = (int)end.Y;
 
-        var maxSteps = _currentConfig.RayLength.Value;
-        var rayEnd = start;
+        var dx = Math.Abs(endX - startX);
+        var dy = Math.Abs(endY - startY);
 
-        for (var steps = 0; steps < maxSteps; steps++)
+        var x = startX;
+        var y = startY;
+
+        var stepX = startX < endX ? 1 : -1;
+        var stepY = startY < endY ? 1 : -1;
+
+        // Handle straight lines efficiently
+        if (dx == 0)
         {
-            if (sideDist.X < sideDist.Y)
+            // Vertical line
+            var step = stepY;
+            for (var i = 0; i < dy; i++)
             {
-                sideDist.X += deltaDist.X;
-                mapPos.X += step.X;
-            }
-            else
-            {
-                sideDist.Y += deltaDist.Y;
-                mapPos.Y += step.Y;
+                y += step;
+                var pos = new Vector2(x, y);
+                var terrainValue = GetTerrainValue(pos);
+                _visiblePoints.Add(pos); // Add point for visualization
+                if (terrainValue < _currentConfig.TargetLayerValue.Value) continue;
+                if (terrainValue <= _currentConfig.TargetLayerValue.Value) return false;
             }
 
-            rayEnd = mapPos;
-            var terrainValue = GetPathfindingValue(mapPos);
-            if (terrainValue < _currentConfig.TargetLayerValue.Value) continue;
-            _visiblePoints.Add(new Vector2((int)mapPos.X, (int)mapPos.Y));
-            if (terrainValue <= _currentConfig.TargetLayerValue.Value) break;
+            return true;
         }
 
-        _rayLines.Add((start, rayEnd));
+        if (dy == 0)
+        {
+            // Horizontal line
+            var step = stepX;
+            for (var i = 0; i < dx; i++)
+            {
+                x += step;
+                var pos = new Vector2(x, y);
+                var terrainValue = GetTerrainValue(pos);
+                _visiblePoints.Add(pos); // Add point for visualization
+                if (terrainValue < _currentConfig.TargetLayerValue.Value) continue;
+                if (terrainValue <= _currentConfig.TargetLayerValue.Value) return false;
+            }
+
+            return true;
+        }
+
+        // DDA for diagonal lines
+        var deltaErr = Math.Abs((float)dy / dx);
+        var error = 0.0f;
+
+        if (dx >= dy)
+        {
+            // Drive by X
+            for (var i = 0; i < dx; i++)
+            {
+                x += stepX;
+                error += deltaErr;
+
+                if (error >= 0.5f)
+                {
+                    y += stepY;
+                    error -= 1.0f;
+                }
+
+                var pos = new Vector2(x, y);
+                var terrainValue = GetTerrainValue(pos);
+                _visiblePoints.Add(pos); // Add point for visualization
+                if (terrainValue < _currentConfig.TargetLayerValue.Value) continue;
+                if (terrainValue <= _currentConfig.TargetLayerValue.Value) return false;
+            }
+        }
+        else
+        {
+            // Drive by Y
+            deltaErr = Math.Abs((float)dx / dy);
+            for (var i = 0; i < dy; i++)
+            {
+                y += stepY;
+                error += deltaErr;
+
+                if (error >= 0.5f)
+                {
+                    x += stepX;
+                    error -= 1.0f;
+                }
+
+                var pos = new Vector2(x, y);
+                var terrainValue = GetTerrainValue(pos);
+                _visiblePoints.Add(pos); // Add point for visualization
+                if (terrainValue < _currentConfig.TargetLayerValue.Value) continue;
+                if (terrainValue <= _currentConfig.TargetLayerValue.Value) return false;
+            }
+        }
+
+        return true;
     }
 
-    private int GetPathfindingValue(Vector2 position)
+    private bool HasLineOfSight(Vector2 start, Vector2 end)
     {
-        try
-        {
-            var x = (int)position.X;
-            var y = (int)position.Y;
+        return
+            HasLineOfSightAndCollectPoints(start,
+                end); // For now reuse the collecting version because i cant be bothered changing it
+    }
 
-            return x >= 0 && x < _areaDimensions.X && y >= 0 && y < _areaDimensions.Y
-                ? _pathfindingCache[y][x]
-                : -1;
-        }
-        catch
-        {
-            return -1;
-        }
+    private int GetTerrainValue(Vector2 position)
+    {
+        var x = (int)position.X;
+        var y = (int)position.Y;
+
+        return x >= 0 && x < _areaDimensions.X && y >= 0 && y < _areaDimensions.Y
+            ? _terrainData[y][x]
+            : -1;
     }
 
     public void Render(ImDrawListPtr drawList, GameController gameController, RaycastRenderConfig config)
     {
         _currentConfig.ShowRayLines = config.ShowRayLines;
         _currentConfig.ShowTerrainValues = config.ShowTerrainValues;
-        _currentConfig.RayLineThickness = config.RayLineThickness;
         _currentConfig.VisibleColor = config.VisibleColor;
         _currentConfig.ShadowColor = config.ShadowColor;
         _currentConfig.RayLineColor = config.RayLineColor;
         _currentConfig.DrawAtPlayerPlane = config.DrawAtPlayerPlane;
         _observerZ = gameController.IngameState.Data.GetTerrainHeightAt(_observerPos);
 
+        // Draw terrain grid
+        if (config.ShowTerrainValues)
+            foreach (var (pos, value) in _gridPointsCache)
+            {
+                var z = config.DrawAtPlayerPlane ? _observerZ : gameController.IngameState.Data.GetTerrainHeightAt(pos);
+                var worldPos = new Vector3(pos.GridToWorld(), z);
+                var screenPos = gameController.IngameState.Camera.WorldToScreen(worldPos);
+                var color = _visiblePoints.Contains(pos)
+                    ? config.VisibleColor.Value.ToImgui()
+                    : config.ShadowColor.Value.ToImgui();
+
+                drawList.AddText(screenPos, color, value.ToString());
+            }
+
+        // Draw ray lines to targets
         if (config.ShowRayLines)
-            foreach (var (start, end) in _rayLines)
+            foreach (var (start, end, isVisible) in _targetRays)
             {
                 var startWorld = new Vector3(start.GridToWorld(), _observerZ);
                 var endWorld = new Vector3(end.GridToWorld(), _observerZ);
@@ -164,19 +241,9 @@ public class RayCaster
                     config.RayLineColor.Value.ToImgui(),
                     config.RayLineThickness
                 );
-            }
 
-        if (config.ShowTerrainValues)
-            foreach (var (pos, value) in _gridPointsCache)
-            {
-                var z = config.DrawAtPlayerPlane ? _observerZ : gameController.IngameState.Data.GetTerrainHeightAt(pos);
-                var worldPos = new Vector3(pos.GridToWorld(), z);
-                var screenPos = gameController.IngameState.Camera.WorldToScreen(worldPos);
-                var color = _visiblePoints.Contains(pos)
-                    ? config.VisibleColor.Value.ToImgui()
-                    : config.ShadowColor.Value.ToImgui();
-
-                drawList.AddText(screenPos, color, value.ToString());
+                var pointColor = isVisible ? config.VisibleColor.Value.ToImgui() : config.ShadowColor.Value.ToImgui();
+                drawList.AddCircleFilled(endScreen, 5f, pointColor);
             }
     }
 }
