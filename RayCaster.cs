@@ -20,13 +20,13 @@ public class RayCaster
     private float _observerZ;
     private int[][] _terrainData;
 
-    public void UpdateArea(GameController gameController)
+    public void UpdateArea()
     {
-        _areaDimensions = gameController.IngameState.Data.AreaDimensions;
+        _areaDimensions = AutoMyAim.Main.GameController.IngameState.Data.AreaDimensions;
 
         var rawData = AutoMyAim.Main.Settings.UseWalkableTerrainInsteadOfTargetTerrain
-            ? gameController.IngameState.Data.RawPathfindingData
-            : gameController.IngameState.Data.RawTerrainTargetingData;
+            ? AutoMyAim.Main.GameController.IngameState.Data.RawPathfindingData
+            : AutoMyAim.Main.GameController.IngameState.Data.RawTerrainTargetingData;
 
         _terrainData = new int[rawData.Length][];
         for (var y = 0; y < rawData.Length; y++)
@@ -234,7 +234,8 @@ public class RayCaster
             else
                 color = AutoMyAim.Main.Settings.Raycast.Visuals.EntityColors.Shadow.Value;
 
-            AutoMyAim.Main.Graphics.DrawText(value.ToString(), screenPos, color, FontAlign.VerticalCenter | FontAlign.Center);
+            AutoMyAim.Main.Graphics.DrawText(value.ToString(), screenPos, color,
+                FontAlign.VerticalCenter | FontAlign.Center);
         }
     }
 

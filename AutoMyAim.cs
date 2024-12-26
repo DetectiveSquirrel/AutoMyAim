@@ -50,7 +50,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         // Register terrain update handler
         Settings.UseWalkableTerrainInsteadOfTargetTerrain.OnValueChanged += (_, _) =>
         {
-            _rayCaster.UpdateArea(GameController);
+            _rayCaster.UpdateArea();
         };
 
         return true;
@@ -58,7 +58,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     public override void AreaChange(AreaInstance area)
     {
-        _rayCaster.UpdateArea(GameController);
+        _rayCaster.UpdateArea();
         _entityScanner.ClearEntities();
         _clusterManager.ClearRenderState();
         _currentTarget = null;
