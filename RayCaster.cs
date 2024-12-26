@@ -234,7 +234,7 @@ public class RayCaster
             else
                 color = AutoMyAim.Main.Settings.Raycast.Visuals.EntityColors.Shadow.Value;
 
-            AutoMyAim.Main.Graphics.DrawText(value.ToString(), screenPos, color, FontAlign.Center);
+            AutoMyAim.Main.Graphics.DrawText(value.ToString(), screenPos, color, FontAlign.VerticalCenter | FontAlign.Center);
         }
     }
 
