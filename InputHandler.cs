@@ -84,13 +84,12 @@ public class InputHandler
 
     private RectangleF GetSafeZone(RectangleF window)
     {
+        var padding = AutoMyAim.Main.Settings.Render.Panels.PaddingPercentToCenter;
         return new RectangleF(
-            window.X + AutoMyAim.Main.Settings.Render.Panels.Padding.Left.Value,
-            window.Y + AutoMyAim.Main.Settings.Render.Panels.Padding.Top.Value,
-            window.Width - (AutoMyAim.Main.Settings.Render.Panels.Padding.Left.Value +
-                            AutoMyAim.Main.Settings.Render.Panels.Padding.Right.Value),
-            window.Height - (AutoMyAim.Main.Settings.Render.Panels.Padding.Top.Value +
-                             AutoMyAim.Main.Settings.Render.Panels.Padding.Bottom.Value)
+            window.X + window.Width * padding.Left.Value / 100f,
+            window.Y + window.Height * padding.Top.Value / 100f,
+            window.Width * (1 - (padding.Left.Value + padding.Right.Value) / 100f),
+            window.Height * (1 - (padding.Top.Value + padding.Bottom.Value) / 100f)
         );
     }
 }

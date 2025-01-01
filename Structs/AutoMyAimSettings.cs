@@ -53,15 +53,15 @@ public class RenderSettings
         public ToggleNode RenderAndWorkOnleftPanels { get; set; } = new(false);
         public ToggleNode RenderAndWorkOnRightPanels { get; set; } = new(false);
 
-        public PaddingSettings Padding { get; set; } = new();
+        public PaddingSettings PaddingPercentToCenter { get; set; } = new();
 
         [Submenu(CollapsedByDefault = true)]
         public class PaddingSettings
         {
-            public RangeNode<int> Left { get; set; } = new(72, 0, 2000);
-            public RangeNode<int> Right { get; set; } = new(62, 0, 2000);
-            public RangeNode<int> Top { get; set; } = new(85, 0, 2000);
-            public RangeNode<int> Bottom { get; set; } = new(235, 0, 2000);
+            public RangeNode<float> Left { get; set; } = new(2, 0, 50);
+            public RangeNode<float> Right { get; set; } = new(3, 0, 50);
+            public RangeNode<float> Top { get; set; } = new(8, 0, 50);
+            public RangeNode<float> Bottom { get; set; } = new(15, 0, 50);
         }
     }
 

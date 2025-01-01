@@ -97,12 +97,15 @@ public class AimRenderer
             );
 
             // Draw inner safe zone with padding
-            var padding = AutoMyAim.Main.Settings.Render.Panels.Padding;
+            var padding = AutoMyAim.Main.Settings.Render.Panels.PaddingPercentToCenter;
             AutoMyAim.Main.Graphics.DrawFrame(
-                new Vector2(padding.Left.Value, padding.Top.Value),
                 new Vector2(
-                    windowRect.Width - padding.Right.Value,
-                    windowRect.Height - padding.Bottom.Value
+                    windowRect.Width * (padding.Left.Value / 100f),
+                    windowRect.Height * (padding.Top.Value / 100f)
+                ),
+                new Vector2(
+                    windowRect.Width * (1 - padding.Right.Value / 100f),
+                    windowRect.Height * (1 - padding.Bottom.Value / 100f)
                 ),
                 Color.FromArgb(125, 0, 255, 255),
                 1
