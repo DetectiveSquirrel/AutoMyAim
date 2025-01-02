@@ -54,7 +54,7 @@ public class EntityScanner(TargetWeightCalculator weightCalculator, ClusterManag
             // probably dont need this here, again in the same tick cycle but it works fine so meh.
             if (!IsEntityValid(entity)) continue;
 
-            if (AutoMyAim.Main._rayCaster.IsPositionVisible(entity.GridPos))
+            if (AutoMyAim.Main.RayCaster.IsPositionVisible(entity.GridPos))
             {
                 var distance = Vector2.Distance(playerPos, entity.GridPos);
                 _trackedEntities.Add(new TrackedEntity

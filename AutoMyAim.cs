@@ -14,18 +14,18 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private readonly ClusterManager _clusterManager;
     private readonly EntityScanner _entityScanner;
     private readonly InputHandler _inputHandler;
-    internal readonly RayCaster _rayCaster;
+    internal readonly RayCaster RayCaster;
     private readonly AimRenderer _renderer;
     private readonly TargetWeightCalculator _weightCalculator;
     private TrackedEntity _currentTarget;
     private bool _isAimToggled;
-    public Vector2 _topLeftScreen;
+    public Vector2 TopLeftScreen;
     public RectangleF GetWindowRectangleNormalized;
 
     public AutoMyAim()
     {
         Name = "Auto My Aim";
-        _rayCaster = new RayCaster();
+        RayCaster = new RayCaster();
         _clusterManager = new ClusterManager();
         _weightCalculator = new TargetWeightCalculator();
         _entityScanner = new EntityScanner(_weightCalculator, _clusterManager);
@@ -48,17 +48,14 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         };
 
         // Register terrain update handler
-        Settings.UseWalkableTerrainInsteadOfTargetTerrain.OnValueChanged += (_, _) =>
-        {
-            _rayCaster.UpdateArea();
-        };
+        Settings.UseWalkableTerrainInsteadOfTargetTerrain.OnValueChanged += (_, _) => { RayCaster.UpdateArea(); };
 
         return true;
     }
 
     public override void AreaChange(AreaInstance area)
     {
-        _rayCaster.UpdateArea();
+        RayCaster.UpdateArea();
         _entityScanner.ClearEntities();
         _clusterManager.ClearRenderState();
         _currentTarget = null;
@@ -68,12 +65,12 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     public override void Tick()
     {
         if (Settings.AimToggleKey.PressedOnce()) _isAimToggled = !_isAimToggled;
-        _topLeftScreen = GameController.Window.GetWindowRectangleTimeCache.TopLeft;
+        TopLeftScreen = GameController.Window.GetWindowRectangleTimeCache.TopLeft;
 
         var windowRect = GameController.Window.GetWindowRectangleReal();
         GetWindowRectangleNormalized = new RectangleF(
-            windowRect.X - _topLeftScreen.X,
-            windowRect.Y - _topLeftScreen.Y,
+            windowRect.X - TopLeftScreen.X,
+            windowRect.Y - TopLeftScreen.Y,
             windowRect.Width,
             windowRect.Height);
 
@@ -92,7 +89,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
         var potentialTargets = _entityScanner.ScanForInRangeEntities(currentPos, GameController);
 
-        _rayCaster.UpdateObserver(currentPos, potentialTargets);
+        RayCaster.UpdateObserver(currentPos, potentialTargets);
 
         _entityScanner.ProcessVisibleEntities(currentPos);
         _entityScanner.UpdateEntityWeights(currentPos);
@@ -149,7 +146,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         {
             var randomizedPos = _inputHandler.GetRandomizedAimPosition(safePosToAim, GetWindowRectangleNormalized);
             if (_inputHandler.IsValidClickPosition(randomizedPos, GetWindowRectangleNormalized))
-                Input.SetCursorPos(randomizedPos + _topLeftScreen);
+                Input.SetCursorPos(randomizedPos + TopLeftScreen);
         }
     }
 

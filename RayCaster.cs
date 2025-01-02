@@ -45,13 +45,14 @@ public class RayCaster
 
         GenerateGridPoints();
 
-        if (targetPositions != null)
-            foreach (var targetPos in targetPositions)
-            {
-                var isVisible = HasLineOfSightAndCollectPoints(_observerPos, targetPos);
-                _targetRays.Add((_observerPos, targetPos, isVisible));
-                if (isVisible) _visibleTargets.Add(targetPos);
-            }
+        if (targetPositions == null) return;
+
+        foreach (var targetPos in targetPositions)
+        {
+            var isVisible = HasLineOfSightAndCollectPoints(_observerPos, targetPos);
+            _targetRays.Add((_observerPos, targetPos, isVisible));
+            if (isVisible) _visibleTargets.Add(targetPos);
+        }
     }
 
     private void GenerateGridPoints()
@@ -97,10 +98,9 @@ public class RayCaster
         if (dx == 0)
         {
             // Vertical line
-            var step = stepY;
             for (var i = 0; i < dy; i++)
             {
-                y += step;
+                y += stepY;
                 var pos = new Vector2(x, y);
                 var terrainValue = GetTerrainValue(pos);
                 _visiblePoints.Add(pos);
@@ -219,7 +219,7 @@ public class RayCaster
             if (_visiblePoints.Contains(pos))
                 color = AutoMyAim.Main.Settings.Raycast.Visuals.EntityColors.Visible.Value;
             else if (AutoMyAim.Main.Settings.Raycast.Visuals.TerrainColors.EnableTerrainColorization &&
-                     value >= 0 && value <= 5)
+                     value is >= 0 and <= 5)
                 // Get the appropriate terrain color based on value
                 color = value switch
                 {
@@ -244,7 +244,10 @@ public class RayCaster
         foreach (var (start, end, isVisible) in _targetRays)
         {
             var startWorld = new Vector3(start.GridToWorld(), _observerZ);
-            var endWorld = new Vector3(end.GridToWorld(), _observerZ);
+            var endWorld = new Vector3(end.GridToWorld(),
+                AutoMyAim.Main.Settings.Raycast.Visuals.DrawAtPlayerPlane
+                    ? _observerZ
+                    : gameController.IngameState.Data.GetTerrainHeightAt(end));
 
             var startScreen = gameController.IngameState.Camera.WorldToScreen(startWorld);
             var endScreen = gameController.IngameState.Camera.WorldToScreen(endWorld);

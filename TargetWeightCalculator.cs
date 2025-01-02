@@ -98,12 +98,6 @@ public class TargetWeightCalculator
             }
         }
 
-        // Custom priorities
-        if (settings.Targeting.CustomTargets.Weight > 0 &&
-            settings.Targeting.CustomTargets.Priorities.Values.Any(path =>
-                trackedEntity.Entity.Path.ToLower().Contains(path.ToLower())))
-            weight += settings.Targeting.CustomTargets.Weight * distanceFactor;
-
         return weight;
     }
 
@@ -141,16 +135,15 @@ public class TargetWeightCalculator
     private void ApplyIsolationPenalties(List<TrackedEntity> entities, HashSet<Entity> entitiesInClusters,
         AutoMyAimSettings settings)
     {
-        foreach (var entity in entities)
-            if (!entitiesInClusters.Contains(entity.Entity))
-            {
-                var rarity = _cachedRarities.TryGetValue(entity.Entity, out var r)
-                    ? r
-                    : entity.Entity.GetComponent<ObjectMagicProperties>()?.Rarity ?? MonsterRarity.White;
+        foreach (var entity in entities.Where(entity => !entitiesInClusters.Contains(entity.Entity)))
+        {
+            var rarity = _cachedRarities.TryGetValue(entity.Entity, out var r)
+                ? r
+                : entity.Entity.GetComponent<ObjectMagicProperties>()?.Rarity ?? MonsterRarity.White;
 
-                if (rarity == MonsterRarity.White || rarity == MonsterRarity.Magic)
-                    entity.Weight *= settings.Targeting.Weights.Cluster.IsolationPenaltyMultiplier.Value;
-            }
+            if (rarity is MonsterRarity.White or MonsterRarity.Magic)
+                entity.Weight *= settings.Targeting.Weights.Cluster.IsolationPenaltyMultiplier.Value;
+        }
     }
 
     private float GetRarityBaseWeight(MonsterRarity rarity, AutoMyAimSettings settings)

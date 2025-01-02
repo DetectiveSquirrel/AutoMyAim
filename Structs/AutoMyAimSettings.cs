@@ -41,7 +41,7 @@ public class RenderSettings
         public ToggleNode ShowClusters { get; set; } = new(true);
         public ColorNode ClusterFillColor { get; set; } = new(Color.FromArgb(128, 255, 255, 0)); // Semi-transparent yellow
         public ColorNode ClusterBorderColor { get; set; } = new(Color.FromArgb(192, 255, 200, 0)); // More opaque yellow-orange
-        public RangeNode<float> BorderThickness { get; set; } = new(2.0f, 0.5f, 5.0f);
+        public RangeNode<float> BorderThickness { get; set; } = new(2.0f, 0f, 5.0f);
         public ToggleNode ShowClusterInfo { get; set; } = new(true);
         public ColorNode ClusterInfoTextColor { get; set; } = new(Color.FromArgb(255, 255, 220, 130));
     }
@@ -83,7 +83,6 @@ public class TargetingSettings
     public ToggleNode PointToOffscreenTargetsOtherwiseFindNextTargetInBounds { get; set; } = new(false);
 
     public WeightSettings Weights { get; set; } = new();
-    public CustomTargetSettings CustomTargets { get; set; } = new();
 
     [Submenu(CollapsedByDefault = true)]
     public class WeightSettings
@@ -137,13 +136,6 @@ public class TargetingSettings
             public ToggleNode EnableSmoothing { get; set; } = new(true);
             public RangeNode<float> SmoothingFactor { get; set; } = new(0.3f, 0.1f, 1f);
         }
-    }
-
-    [Submenu(CollapsedByDefault = true)]
-    public class CustomTargetSettings
-    {
-        public ListNode Priorities { get; set; } = new();
-        public RangeNode<float> Weight { get; set; } = new(2.0f, 0f, 10f);
     }
 }
 [Submenu(CollapsedByDefault = true)]

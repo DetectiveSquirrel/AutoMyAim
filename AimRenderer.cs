@@ -8,22 +8,15 @@ using ExileCore2.PoEMemory.MemoryObjects;
 
 namespace AutoMyAim;
 
-public class AimRenderer
+public class AimRenderer(ClusterManager clusterManager)
 {
-    private readonly ClusterManager _clusterManager;
-    private readonly InputHandler _inputHandler;
-
-    public AimRenderer(ClusterManager clusterManager)
-    {
-        _clusterManager = clusterManager;
-        _inputHandler = new InputHandler();
-    }
+    private readonly InputHandler _inputHandler = new();
 
     public void Render(GameController gameController, TrackedEntity currentTarget, List<TrackedEntity> trackedEntities)
     {
         if (!ShouldDraw(gameController)) return;
 
-        AutoMyAim.Main._rayCaster.Render(gameController);
+        AutoMyAim.Main.RayCaster.Render(gameController);
         RenderEntityWeights(gameController, trackedEntities);
         RenderClusters(gameController);
         RenderAimVisualization(gameController, currentTarget);
@@ -69,7 +62,7 @@ public class AimRenderer
             !AutoMyAim.Main.Settings.Targeting.Weights.Cluster.EnableClustering)
             return;
 
-        _clusterManager.Render(AutoMyAim.Main.Graphics, gameController.Player);
+        clusterManager.Render(AutoMyAim.Main.Graphics, gameController);
     }
 
     private void RenderAimVisualization(GameController gameController, TrackedEntity currentTarget)
@@ -87,14 +80,6 @@ public class AimRenderer
                     1,
                     50
                 );
-
-            // Draw outer window bounds
-            AutoMyAim.Main.Graphics.DrawFrame(
-                new Vector2(0, 0),
-                new Vector2(windowRect.Width, windowRect.Height),
-                Color.FromArgb(125, 255, 255, 0),
-                1
-            );
 
             // Draw inner safe zone with padding
             var padding = AutoMyAim.Main.Settings.Render.Panels.PaddingPercentToCenter;

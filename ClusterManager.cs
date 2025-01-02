@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using AutoMyAim.Structs;
+using ExileCore2;
 using ExileCore2.PoEMemory.Components;
 using ExileCore2.PoEMemory.MemoryObjects;
 using ExileCore2.Shared.Enums;
@@ -23,9 +24,9 @@ public class ClusterManager
         _hasValidRenderState = true;
     }
 
-    public void Render(Graphics graphics, Entity player)
+    public void Render(Graphics graphics, GameController gameController)
     {
-        if (!_hasValidRenderState || player == null || !AutoMyAim.Main.Settings.Render.ClusterVisuals.ShowClusters)
+        if (!_hasValidRenderState || gameController.Player == null || !AutoMyAim.Main.Settings.Render.ClusterVisuals.ShowClusters)
             return;
 
 
@@ -39,12 +40,12 @@ public class ClusterManager
         {
             if (cluster.Entities.Count == 0) continue;
 
-            var worldPos = new Vector3(cluster.Center.GridToWorld(), player.Pos.Z);
+            var worldPos = new Vector3(cluster.Center.GridToWorld(), gameController.IngameState.Data.GetTerrainHeightAt(cluster.Center));
             var radius = cluster.Radius * PoeMapExtension.TileToGridConversion / 2;
 
-            graphics.DrawFilledCircleInWorld(worldPos, radius, fillColor);
+            graphics.DrawFilledCircleInWorld(worldPos, radius, fillColor, 50);
 
-            if (borderThickness > 0) graphics.DrawCircleInWorld(worldPos, radius, borderColor, borderThickness);
+            if (borderThickness > 0) graphics.DrawCircleInWorld(worldPos, radius, borderColor, borderThickness, 50);
 
             if (showInfo)
             {
