@@ -73,13 +73,16 @@ public class AimRenderer(ClusterManager clusterManager)
         {
             // Draw cursor confinement circle if enabled
             if (AutoMyAim.Main.Settings.Render.Cursor.ConfineCursorToCircle)
+            {
+                var playerScreenPos = AutoMyAim.Main.GameController.IngameState.Camera.WorldToScreen(AutoMyAim.Main.GameController.Player.Pos);
                 AutoMyAim.Main.Graphics.DrawCircle(
-                    AutoMyAim.Main.GetWindowRectangleNormalized.Center,
+                    playerScreenPos,
                     AutoMyAim.Main.Settings.Render.Cursor.CursorCircleRadius,
                     Color.FromArgb(125, 255, 255, 0),
                     1,
                     50
                 );
+            }
 
             // Draw inner safe zone with padding
             var padding = AutoMyAim.Main.Settings.Render.Panels.PaddingPercentToCenter;
