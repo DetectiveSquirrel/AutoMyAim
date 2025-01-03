@@ -127,19 +127,17 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private void UpdateCursorPosition(Vector2 rawPosToAim)
     {
         if (_currentTarget == null) return;
-
         var safePosToAim = _inputHandler.GetSafeAimPosition(rawPosToAim, GetWindowRectangleNormalized);
 
         if (Settings.Render.Cursor.ConfineCursorToCircle)
         {
-            var vectorToTarget = safePosToAim - GetWindowRectangleNormalized.Center;
-            var distanceToTarget = vectorToTarget.Length();
+            var playerScreenPos = GameController.IngameState.Camera.WorldToScreen(GameController.Player.Pos);
+            var circleRadius = Settings.Render.Cursor.CursorCircleRadius;
 
-            if (distanceToTarget > Settings.Render.Cursor.CursorCircleRadius)
-            {
-                vectorToTarget = Vector2.Normalize(vectorToTarget) * Settings.Render.Cursor.CursorCircleRadius;
-                safePosToAim = GetWindowRectangleNormalized.Center + vectorToTarget;
-            }
+            var toTarget = safePosToAim - playerScreenPos;
+            var distance = toTarget.Length();
+
+            if (distance > circleRadius) safePosToAim = playerScreenPos + Vector2.Normalize(toTarget) * circleRadius;
         }
 
         if (_inputHandler.IsValidClickPosition(safePosToAim, GetWindowRectangleNormalized))
