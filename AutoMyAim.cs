@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using AutoMyAim.Structs;
@@ -128,17 +129,46 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     {
         if (_currentTarget == null) return;
 
+        var playerScreenPos = GameController.IngameState.Camera.WorldToScreen(GameController.Player.Pos);
         var safePosToAim = _inputHandler.GetSafeAimPosition(rawPosToAim, GetWindowRectangleNormalized);
 
         if (Settings.Render.Cursor.ConfineCursorToCircle)
         {
-            var vectorToTarget = safePosToAim - GetWindowRectangleNormalized.Center;
-            var distanceToTarget = vectorToTarget.Length();
-
-            if (distanceToTarget > Settings.Render.Cursor.CursorCircleRadius)
+            var screenCenter = GetWindowRectangleNormalized.Center;
+            var circleRadius = Settings.Render.Cursor.CursorCircleRadius;
+            
+            // Check if the target position is outside the circle
+            var targetToCenter = safePosToAim - screenCenter;
+            var distanceToCenter = targetToCenter.Length();
+            
+            if (distanceToCenter > circleRadius)
             {
-                vectorToTarget = Vector2.Normalize(vectorToTarget) * Settings.Render.Cursor.CursorCircleRadius;
-                safePosToAim = GetWindowRectangleNormalized.Center + vectorToTarget;
+                // Calculate ray direction from player to target
+                var rayDirection = Vector2.Normalize(safePosToAim - playerScreenPos);
+                
+                // Calculate vector from circle center to player
+                var centerToPlayer = playerScreenPos - screenCenter;
+                
+                // Calculate quadratic equation coefficients for ray-circle intersection
+                var a = Vector2.Dot(rayDirection, rayDirection);
+                var b = 2 * Vector2.Dot(centerToPlayer, rayDirection);
+                var c = Vector2.Dot(centerToPlayer, centerToPlayer) - circleRadius * circleRadius;
+                
+                // Calculate discriminant
+                var discriminant = b * b - 4 * a * c;
+                
+                if (discriminant >= 0)
+                {
+                    // Calculate the two intersection points
+                    var t1 = (-b + MathF.Sqrt(discriminant)) / (2 * a);
+                    var t2 = (-b - MathF.Sqrt(discriminant)) / (2 * a);
+                    
+                    // Use the intersection point that's further along the ray direction
+                    var t = MathF.Max(t1, t2);
+                    
+                    // Calculate the intersection point
+                    safePosToAim = playerScreenPos + rayDirection * t;
+                }
             }
         }
 
