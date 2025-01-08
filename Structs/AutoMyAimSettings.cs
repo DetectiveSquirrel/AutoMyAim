@@ -1,21 +1,48 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Text.Json.Serialization;
 using System.Windows.Forms;
+using ExileCore2;
+using Shortcut = GameOffsets2.Shortcut;
+using ExileCore2.PoEMemory.Elements;
 using ExileCore2.Shared.Attributes;
 using ExileCore2.Shared.Interfaces;
 using ExileCore2.Shared.Nodes;
+using ExileCore2.PoEMemory.Components;
 
 namespace AutoMyAim.Structs;
+
+
+public static class ShorCutHelpers
+{
+    public static bool IsShortCutPressed(this Shortcut shortcut)
+    {
+        return shortcut.MainKey != ConsoleKey.None &&
+               (shortcut.Modifier != GameOffsets2.ShortcutModifier.None ? Input.IsKeyDown((Keys)shortcut.MainKey) && Input.IsKeyDown((Keys)shortcut.Modifier) : Input.IsKeyDown((Keys)shortcut.MainKey));
+    }
+
+}
 
 public class AutoMyAimSettings : ISettings
 {
     public ToggleNode Enable { get; set; } = new(false);
     public ToggleNode UseWalkableTerrainInsteadOfTargetTerrain { get; set; } = new(false);
+    public ToggleNode UseAimKey { get; set; } = new(false);
+    public ButtonNode ResetSkills { get; set; } = new();
     public HotkeyNode AimKey { get; set; } = new(Keys.None);
     public HotkeyNode AimToggleKey { get; set; } = new(Keys.None);
+    public HotkeyNode ToggleSkillHotKey { get; set; } = new(Keys.MButton);
     public RenderSettings Render { get; set; } = new();
     public TargetingSettings Targeting { get; set; } = new();
     public RaycastSettings Raycast { get; set; } = new();
+    public Dictionary<string,bool[]> ShortCutBools { get; set; } = new Dictionary<string, bool[]>(); //public Dictionary<string, List<ShortcutInfo>> ActiveShortcuts { get; set; } = new();
+
+    //public Dictionary<string, List<ShortcutInfo>> ActiveShortcuts { get; set; } = new();
+
 }
+
 
 [Submenu(CollapsedByDefault = true)]
 public class RenderSettings
