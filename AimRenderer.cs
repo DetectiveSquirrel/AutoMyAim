@@ -95,7 +95,7 @@ public class AimRenderer(ClusterManager clusterManager)
                     windowRect.Width * (1 - padding.Right.Value / 100f),
                     windowRect.Height * (1 - padding.Bottom.Value / 100f)
                 ),
-                Color.FromArgb(125, 0, 255, 255),
+                Color.FromArgb(180, 0, 255, 255),
                 1
             );
         }

@@ -1,13 +1,17 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using System.Windows.Forms;
 using AutoMyAim.Structs;
 using ExileCore2;
-using ExileCore2.PoEMemory.MemoryObjects;
 using ExileCore2.PoEMemory.Components;
-namespace AutoMyAim;
+using ExileCore2.PoEMemory.Elements;
+using ExileCore2.PoEMemory.MemoryObjects;
+using Shortcut = GameOffsets2.Shortcut;
 
+namespace AutoMyAim;
 public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 {
     public static AutoMyAim Main;
@@ -18,9 +22,12 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private readonly AimRenderer _renderer;
     private readonly TargetWeightCalculator _weightCalculator;
     private TrackedEntity _currentTarget;
-    private bool _isAimToggled;
+    public bool _isAimToggled;
     public Vector2 TopLeftScreen;
     public ExileCore2.Shared.RectangleF GetWindowRectangleNormalized;
+    private List<Shortcut> skills_shortcuts;
+    private List<SkillElement> skillbar;
+
     public AutoMyAim()
     {
         Name = "Auto My Aim";
@@ -47,8 +54,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
         // Register terrain update handler
         Settings.UseWalkableTerrainInsteadOfTargetTerrain.OnValueChanged += (_, _) => { RayCaster.UpdateArea(); };
-  
-        
+
+
         return true;
     }
 
@@ -63,9 +70,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     public override void Tick()
     {
-        if(GameController.IsLoading) return;
-        Player pl;
-        var validPl =GameController.Player.TryGetComponent<Player>(out pl);
+        if (GameController.IsLoading) return;
+        var validPl = GameController.Player.TryGetComponent<Player>(out Player pl);
 
         if (validPl && !Settings.ShortCutBools.ContainsKey(pl.PlayerName) || Settings.ShortCutBools[pl.PlayerName] == null)
         {
@@ -82,36 +88,32 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
             windowRect.Width,
             windowRect.Height);
 
-        var scs = GameController.IngameState?.ShortcutSettings?.Shortcuts?.Skip(5).Take(13).ToList();
-        var skillbar = GameController.IngameState?.IngameUi?.SkillBar?.Skills.ToList();
+         skills_shortcuts = GameController.IngameState?.ShortcutSettings?.Shortcuts?.Skip(5).Take(13).ToList();
+         skillbar = GameController.IngameState?.IngameUi?.SkillBar?.Skills.ToList();
 
 
         if (!Settings.UseAimKey && !_isAimToggled && Settings.ToggleSkillHotKey.PressedOnce())
         {
-            if (scs != null)
+            if (skills_shortcuts != null)
             {
                 if (skillbar.Any(skEl => skEl.GetClientRect().Contains(Input.MousePosition) && skEl.Skill != null && skEl.Skill.Id > 0))
                 {
                     var element = skillbar.FirstOrDefault(sc => sc.IsVisibleLocal && sc.GetClientRect().Contains(Input.MousePosition) && sc.Skill != null && sc.Skill.Id > 0);
                     if (element != null)
                     {
-                        var index = skillbar.IndexOf(element);
-                        var sc = scs[index];
-                        Settings.ShortCutBools[pl.PlayerName][index] = !Settings.ShortCutBools[pl.PlayerName][index];
-                        LogMessage($"index: {index} shortCut: {sc.ToString()} elem {element.Skill.Name}");
+                        var i = skillbar.IndexOf(element);
+                        Settings.ShortCutBools[pl.PlayerName][i] = !Settings.ShortCutBools[pl.PlayerName][i];
                     }
                 }
             }
         }
 
         if (!ShouldProcess()) return;
-        if(_isAimToggled)return;
-        if ( !Settings.UseAimKey && !skillbar.Any(skEl => Settings.ShortCutBools[pl.PlayerName][skillbar.IndexOf(skEl)] && skEl.Skill != null && skEl.Skill.Id > 0 && scs[skillbar.IndexOf(skEl)].IsShortCutPressed()))
-            return;
-
-
+        if (_isAimToggled) return;
+        if (!Settings.UseAimKey && !skillbar.Any(skEl => Settings.ShortCutBools[pl.PlayerName][skillbar.IndexOf(skEl)] && skEl.Skill != null && skEl.Skill.Id > 0 && skills_shortcuts[skillbar.IndexOf(skEl)].IsShortCutPressed()))
+            return;   
         if (Settings.UseAimKey && !Input.GetKeyState(Settings.AimKey.Value)) return;
-     
+
         var player = GameController?.Player;
         if (player == null) return;
 
@@ -138,7 +140,6 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         _currentTarget = targetEntity;
         UpdateCursorPosition(rawPosToAim);
     }
-
     private (TrackedEntity entity, Vector2 position) GetTargetEntityAndPosition(List<TrackedEntity> sortedEntities)
     {
         if (!Settings.Targeting.PointToOffscreenTargetsOtherwiseFindNextTargetInBounds)
@@ -185,10 +186,10 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
     public override void Render()
     {
-        if (GameController.IsLoading) return;
+        if (!GameController.InGame || !GameController.IngameState.InGame) return;
 
         _renderer.Render(GameController, _currentTarget, _entityScanner.GetTrackedEntities());
-        if (!Settings.UseAimKey && !_isAimToggled)
+        if (!Settings.UseAimKey && !_isAimToggled && !GameController.IsLoading)
         {
             var skillbar = GameController.IngameState.IngameUi.SkillBar.Skills.ToList();
             for (int i = 0; i < skillbar.Count; i++)
@@ -198,18 +199,14 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
                 if (Settings.ShortCutBools[playername][i] && element.IsVisibleLocal && element.Skill != null && element.Skill.Id > 0)
                 {
                     var pos = element.GetClientRect();
-                    Graphics.DrawFrame(pos, Color.Green, 2);
+                    Graphics.DrawFrame(pos, Color.Green, 4);
                 }
             }
         }
+        var pastelColor = !_isAimToggled && !MenuWindow.IsOpened ? Color.FromArgb(125, 0, 255, 0) : Color.FromArgb(125, 255, 0, 0);
 
-        //if (!Settings.UseAimKey && !_isAimToggled)
-        //    sc.Where(sc => sc.Active && sc.Element.IsVisible).ToList().ForEach(sc =>
-        //    {
-        //        var pos = sc.Element.GetClientRectCache;
-
-        //        Graphics.DrawFrame(pos, Color.Green, 2);
-        //    });
+        var brNormalized = Main.GetWindowRectangleNormalized.BottomRight;
+        Graphics.DrawCircleFilled(new Vector2(brNormalized.X - 15, brNormalized.Y - 15), 10, pastelColor, 10);
     }
 
     private bool ShouldProcess()
@@ -229,5 +226,16 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         if (!Settings.Render.Panels.RenderAndWorkOnleftPanels && ingameUi.OpenLeftPanel.IsVisible)
             return false;
         return Settings.Render.Panels.RenderAndWorkOnRightPanels || !ingameUi.OpenRightPanel.IsVisible;
+    }
+}
+
+public static class ShortcutExtensions
+{
+    public static bool IsShortCutPressed(this Shortcut shortcut)
+    {
+        return shortcut.MainKey != ConsoleKey.None &&
+               (shortcut.Modifier != GameOffsets2.ShortcutModifier.None ?
+               Input.IsKeyDown((Keys)shortcut.MainKey) && Input.IsKeyDown((Keys)shortcut.Modifier) :
+               Input.IsKeyDown((Keys)shortcut.MainKey));
     }
 }
