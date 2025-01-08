@@ -11,7 +11,7 @@ public class AutoMyAimSettings : ISettings
 {
     public ToggleNode Enable { get; set; } = new(false);
     public ToggleNode UseWalkableTerrainInsteadOfTargetTerrain { get; set; } = new(false);
-    public ToggleNode UseAimKey { get; set; } = new(false);
+    public ToggleNode UseAimKey { get; set; } = new(true);
     public HotkeyNode AimKey { get; set; } = new(Keys.None);
     public HotkeyNode AimToggleKey { get; set; } = new(Keys.None);
     public HotkeyNode ToggleSkillHotKey { get; set; } = new(Keys.MButton);

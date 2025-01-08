@@ -109,10 +109,9 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         }
 
         if (!ShouldProcess()) return;
-        if (_isAimToggled) return;
+        if (Settings.UseAimKey && !Input.GetKeyState(Settings.AimKey.Value) && !_isAimToggled) return;
         if (!Settings.UseAimKey && !skillbar.Any(skEl => Settings.ShortCutBools[pl.PlayerName][skillbar.IndexOf(skEl)] && skEl.Skill != null && skEl.Skill.Id > 0 && skills_shortcuts[skillbar.IndexOf(skEl)].IsShortCutPressed()))
             return;   
-        if (Settings.UseAimKey && !Input.GetKeyState(Settings.AimKey.Value)) return;
 
         var player = GameController?.Player;
         if (player == null) return;
