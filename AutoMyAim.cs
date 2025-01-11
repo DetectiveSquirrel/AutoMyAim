@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using AutoMyAim.Structs;
@@ -19,6 +20,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private readonly TargetWeightCalculator _weightCalculator;
     private TrackedEntity _currentTarget;
     private bool _isAimToggled;
+    private Func<bool> _pickitIsActive;
     public Vector2 TopLeftScreen;
     public RectangleF GetWindowRectangleNormalized;
 
@@ -49,6 +51,8 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
 
         // Register terrain update handler
         Settings.UseWalkableTerrainInsteadOfTargetTerrain.OnValueChanged += (_, _) => { RayCaster.UpdateArea(); };
+
+        _pickitIsActive = GameController.PluginBridge.GetMethod<Func<bool>>("PickIt.IsActive");
 
         return true;
     }
@@ -101,6 +105,11 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         if (targetEntity == null) return;
 
         _currentTarget = targetEntity;
+        if (Settings.UsePluginBridgeWarnings)
+        {
+            if (_pickitIsActive?.Invoke() ?? false)
+                return;
+        }
         UpdateCursorPosition(rawPosToAim);
     }
 
