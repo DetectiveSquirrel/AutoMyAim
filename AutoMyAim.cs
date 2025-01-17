@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using AutoMyAim.Structs;
@@ -19,6 +20,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private readonly TargetWeightCalculator _weightCalculator;
     private TrackedEntity _currentTarget;
     private bool _isAimToggled;
+    private Func<bool> _pickitIsActive;
     public Vector2 TopLeftScreen;
     public RectangleF GetWindowRectangleNormalized;
 
@@ -60,6 +62,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         _clusterManager.ClearRenderState();
         _currentTarget = null;
         _isAimToggled = false;
+        _pickitIsActive = GameController.PluginBridge.GetMethod<Func<bool>>("PickIt.IsActive");
     }
 
     public override void Tick()
@@ -101,6 +104,11 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         if (targetEntity == null) return;
 
         _currentTarget = targetEntity;
+        if (Settings.UsePluginBridgeWarnings)
+        {
+            if (_pickitIsActive?.Invoke() ?? false)
+                return;
+        }
         UpdateCursorPosition(rawPosToAim);
     }
 
