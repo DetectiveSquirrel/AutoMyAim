@@ -103,9 +103,8 @@ public class RayCaster
                 y += stepY;
                 var pos = new Vector2(x, y);
                 var terrainValue = GetTerrainValue(pos);
-                _visiblePoints.Add(pos);
-                if (terrainValue < targetLayerValue) continue;
                 if (terrainValue <= targetLayerValue) return false;
+                _visiblePoints.Add(pos);
             }
 
             return true;
@@ -120,9 +119,8 @@ public class RayCaster
                 x += step;
                 var pos = new Vector2(x, y);
                 var terrainValue = GetTerrainValue(pos);
-                _visiblePoints.Add(pos);
-                if (terrainValue < targetLayerValue) continue;
                 if (terrainValue <= targetLayerValue) return false;
+                _visiblePoints.Add(pos);
             }
 
             return true;
@@ -148,9 +146,8 @@ public class RayCaster
 
                 var pos = new Vector2(x, y);
                 var terrainValue = GetTerrainValue(pos);
-                _visiblePoints.Add(pos);
-                if (terrainValue < targetLayerValue) continue;
                 if (terrainValue <= targetLayerValue) return false;
+                _visiblePoints.Add(pos);
             }
         }
         else
@@ -170,9 +167,8 @@ public class RayCaster
 
                 var pos = new Vector2(x, y);
                 var terrainValue = GetTerrainValue(pos);
-                _visiblePoints.Add(pos);
-                if (terrainValue < targetLayerValue) continue;
                 if (terrainValue <= targetLayerValue) return false;
+                _visiblePoints.Add(pos);
             }
         }
 
