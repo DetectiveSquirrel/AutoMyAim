@@ -11,8 +11,8 @@ public class AutoMyAimSettings : ISettings
     public ToggleNode Enable { get; set; } = new(false);
     public ToggleNode UseWalkableTerrainInsteadOfTargetTerrain { get; set; } = new(false);
     public ToggleNode UsePluginBridgeWarnings { get; set; } = new(false);
-    public HotkeyNode AimKey { get; set; } = new(Keys.None);
-    public HotkeyNode AimToggleKey { get; set; } = new(Keys.None);
+    public HotkeyNodeV2 AimKey { get; set; } = new(Keys.None);
+    public HotkeyNodeV2 AimToggleKey { get; set; } = new(Keys.None);
     public RenderSettings Render { get; set; } = new();
     public TargetingSettings Targeting { get; set; } = new();
     public RaycastSettings Raycast { get; set; } = new();

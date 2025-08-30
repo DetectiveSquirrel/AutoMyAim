@@ -5,7 +5,7 @@ using System.Numerics;
 using AutoMyAim.Structs;
 using ExileCore2;
 using ExileCore2.PoEMemory.MemoryObjects;
-using ExileCore2.Shared;
+using RectangleF = ExileCore2.Shared.RectangleF;
 
 namespace AutoMyAim;
 
@@ -40,12 +40,12 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         Main = this;
 
         // Register input handlers
-        Input.RegisterKey(Settings.AimKey);
-        Input.RegisterKey(Settings.AimToggleKey);
-        Settings.AimKey.OnValueChanged += () => { Input.RegisterKey(Settings.AimKey); };
+        Input.RegisterKey(Settings.AimKey.Value);
+        Input.RegisterKey(Settings.AimToggleKey.Value);
+        Settings.AimKey.OnValueChanged += () => { Input.RegisterKey(Settings.AimKey.Value); };
         Settings.AimToggleKey.OnValueChanged += () =>
         {
-            Input.RegisterKey(Settings.AimToggleKey);
+            Input.RegisterKey(Settings.AimToggleKey.Value);
             _isAimToggled = false;
         };
 
@@ -78,7 +78,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
             windowRect.Height);
 
         if (!ShouldProcess()) return;
-        if (!_isAimToggled && !Input.GetKeyState(Settings.AimKey.Value)) return;
+        if (!_isAimToggled && !Settings.AimKey.IsPressed()) return;
 
         var player = GameController?.Player;
         if (player == null) return;
