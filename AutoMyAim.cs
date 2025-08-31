@@ -19,7 +19,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
     private readonly AimRenderer _renderer;
     private readonly TargetWeightCalculator _weightCalculator;
     private TrackedEntity _currentTarget;
-    private bool _isAimToggled;
+    public static bool IsAimToggled;
     private Func<bool> _pickitIsActive;
     public Vector2 TopLeftScreen;
     public RectangleF GetWindowRectangleNormalized;
@@ -46,7 +46,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         Settings.AimToggleKey.OnValueChanged += () =>
         {
             Input.RegisterKey(Settings.AimToggleKey.Value);
-            _isAimToggled = false;
+            IsAimToggled = false;
         };
 
         // Register terrain update handler
@@ -61,13 +61,13 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
         _entityScanner.ClearEntities();
         _clusterManager.ClearRenderState();
         _currentTarget = null;
-        _isAimToggled = false;
+        IsAimToggled = false;
         _pickitIsActive = GameController.PluginBridge.GetMethod<Func<bool>>("PickIt.IsActive");
     }
 
     public override void Tick()
     {
-        if (Settings.AimToggleKey.PressedOnce()) _isAimToggled = !_isAimToggled;
+        if (Settings.AimToggleKey.PressedOnce()) IsAimToggled = !IsAimToggled;
         TopLeftScreen = GameController.Window.GetWindowRectangleTimeCache.TopLeft;
 
         var windowRect = GameController.Window.GetWindowRectangleReal();
@@ -78,7 +78,7 @@ public class AutoMyAim : BaseSettingsPlugin<AutoMyAimSettings>
             windowRect.Height);
 
         if (!ShouldProcess()) return;
-        if (!_isAimToggled && !Settings.AimKey.IsPressed()) return;
+        if (!IsAimToggled && !Settings.AimKey.IsPressed()) return;
 
         var player = GameController?.Player;
         if (player == null) return;

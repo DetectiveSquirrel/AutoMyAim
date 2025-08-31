@@ -25,7 +25,8 @@ public class AimRenderer(ClusterManager clusterManager)
     private bool ShouldDraw(GameController gameController)
     {
         return AutoMyAim.Main.Settings.Render.EnableDrawing &&
-               AreUiElementsVisible(gameController?.IngameState.IngameUi);
+            (AutoMyAim.Main.Settings.AimKey.IsPressed() || AutoMyAim.IsAimToggled) &&
+            AreUiElementsVisible(gameController?.IngameState.IngameUi);
     }
 
     private bool AreUiElementsVisible(IngameUIElements ingameUi)
